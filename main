@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
+  <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
+</head>
+
+<body style="margin:0; overflow:hidden;">
+
+<a-scene
+  embedded
+  vr-mode-ui="enabled:false"
+  renderer="preserveDrawingBuffer:true; alpha:true; antialias:true"
+  arjs="sourceType:webcam; debugUIEnabled:false">
+
+  <!-- MARKER -->
+  <a-marker preset="hiro">
+
+    <!-- PERSONAJE -->
+    <a-entity
+      id="personaje"
+      visible="false"
+      gltf-model="https://raw.githubusercontent.com/KarenFrancellino/ar-models/main/DROYZ_ANIMAPP_SiCkJacken_v005.glb"
+      scale="2 2 2"
+      position="0 0 -1.5"
+      animation-mixer="clip: SickJacken_rigAction; loop: repeat">
+    </a-entity>
+
+  </a-marker>
+
+  <a-entity camera></a-entity>
+</a-scene>
+
+<!-- BOTONES -->
+<div style="position:fixed; bottom:20px; width:100%; display:flex; justify-content:space-around; z-index:9999;">
+  <button id="btnColocar" style="padding:15px;border-radius:50%;font-size:20px;">📍</button>
+  <button id="btnMover" style="padding:15px;border-radius:50%;font-size:20px;">↔️</button>
+</div>
+
+<script>
+  const personaje = document.querySelector('#personaje');
+  const btnColocar = document.querySelector('#btnColocar');
+  const btnMover = document.querySelector('#btnMover');
+
+  let colocado = false;
+  let modoMover = false;
+
+  // 📍 COLOCAR PERSONAJE
+  btnColocar.addEventListener('click', () => {
+    if (!colocado) {
+      personaje.setAttribute('visible', 'true');
+      personaje.setAttribute('position', '0 0 -1.5');
+      colocado = true;
+    }
+  });
+
+  // ↔️ ACTIVAR / DESACTIVAR MOVER
+  btnMover.addEventListener('click', () => {
+    modoMover = !modoMover;
+    btnMover.style.background = modoMover ? '#ffd54f' : 'white';
+  });
+
+  // 👉 ARRASTAR PARA MOVER
+  document.addEventListener('touchmove', (e) => {
+    if (!modoMover || !colocado) return;
+
+    const touch = e.touches[0];
+
+    // Normaliza a posição do toque
+    const x = (touch.clientX / window.innerWidth - 0.5) * 2;
+    const y = -(touch.clientY / window.innerHeight - 0.5) * 2;
+
+    personaje.setAttribute('position', `${x} ${y} -1.5`);
+  });
+
+</script>
+
+</body>
+</html>
