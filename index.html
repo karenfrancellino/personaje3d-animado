@@ -159,3 +159,171 @@
     </script>
 </body>
 </html>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Droyz AR Final</title>
+
+    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
+
+    <style>
+        body { margin: 0; overflow: hidden; }
+        
+        /* Layout dos Botões - Travados na tela */
+        .interface {
+            position: fixed;
+            bottom: 40px;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 40px;
+            z-index: 9999; /* Garante que fiquem na frente de tudo */
+            pointer-events: none; /* Deixa o toque passar para o AR onde não tem botão */
+        }
+
+        .btn {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 4px solid white;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            font-size: 30px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto; /* Reativa o clique apenas nos botões */
+            transition: all 0.2s;
+        }
+
+        .btn:active { transform: scale(0.9); }
+        #btn-rec.recording { background: red; border-color: white; animation: blink 1s infinite; }
+
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+    </style>
+</head>
+
+<body>
+    <a-scene embedded vr-mode-ui="enabled: false" 
+             renderer="preserveDrawingBuffer: true; alpha: true;"
+             arjs="sourceType: webcam; debugUIEnabled: false;">
+        
+        <a-assets>
+            <a-asset-item id="modelo" src="https://raw.githubusercontent.com/KarenFrancellino/ar-models/main/DROYZ_ANIMAPP_SiCkJacken_v005.glb"></a-asset-item>
+        </a-assets>
+
+        <a-entity light="type: ambient; intensity: 1.5;"></a-entity>
+        <a-entity light="type: directional; position: 1 2 1; intensity: 1;"></a-entity>
+
+        <a-entity id="personaje" 
+                  gltf-model="#modelo"
+                  scale="4 4 4" 
+                  position="0 -1.5 -5" 
+                  animation-mixer="clip: SickJacken_rigAction; loop: repeat">
+        </a-entity>
+
+        <a-entity camera>
+            <a-entity cursor="rayOrigin: mouse;" raycaster="objects: .piso;"></a-entity>
+        </a-entity>
+        
+        <a-plane class="piso" rotation="-90 0 0" width="100" height="100" position="0 -1.5 0" visible="false"></a-plane>
+    </a-scene>
+
+    <div class="interface">
+        <button id="btn-foto" class="btn">📸</button>
+        <button id="btn-rec" class="btn">🔴</button>
+    </div>
+
+    <script>
+        const cena = document.querySelector('a-scene');
+        const personagem = document.querySelector('#personaje');
+        const btnRec = document.querySelector('#btn-rec');
+
+        // 1. MOVER PERSONAGEM (Toque na tela)
+        document.querySelector('.piso').addEventListener('click', (ev) => {
+            const ponto = ev.detail.intersection.point;
+            if (ponto) {
+                // Move o personagem para onde você clicou
+                personaje.setAttribute('position', { x: ponto.x, y: -1.5, z: ponto.z });
+            }
+        });
+
+        // 2. TIRAR FOTO (Câmera + Personagem)
+        document.querySelector('#btn-foto').addEventListener('click', () => {
+            const video = document.querySelector('video');
+            const canvasAR = cena.renderer.domElement;
+            const finalCanvas = document.createElement('canvas');
+            finalCanvas.width = canvasAR.width;
+            finalCanvas.height = canvasAR.height;
+            const ctx = finalCanvas.getContext('2d');
+
+            // SEGREDO: Forçar o renderizador a desenhar o boneco agora
+            cena.renderer.render(cena.object3D, cena.camera);
+
+            ctx.drawImage(video, 0, 0, finalCanvas.width, finalCanvas.height);
+            ctx.drawImage(canvasAR, 0, 0);
+
+            const link = document.createElement('a');
+            link.download = 'Droyz_Foto.png';
+            link.href = finalCanvas.toDataURL('image/png');
+            link.click();
+        });
+
+        // 3. GRAVAR VÍDEO
+        let recorder;
+        let chunks = [];
+        const recordCanvas = document.createElement('canvas');
+        const recordCtx = recordCanvas.getContext('2d');
+
+        btnRec.addEventListener('click', function() {
+            if (!recorder || recorder.state === 'inactive') {
+                const video = document.querySelector('video');
+                const canvasAR = cena.renderer.domElement;
+                recordCanvas.width = canvasAR.width;
+                recordCanvas.height = canvasAR.height;
+
+                const stream = recordCanvas.captureStream(30);
+                
+                // Compatibilidade de formato
+                let mime = MediaRecorder.isTypeSupported('video/mp4') ? 'video/mp4' : 'video/webm';
+                recorder = new MediaRecorder(stream, { mimeType: mime });
+
+                recorder.ondataavailable = e => chunks.push(e.data);
+                recorder.onstop = () => {
+                    const blob = new Blob(chunks, { type: mime });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `Droyz_Video.${mime.split('/')[1]}`;
+                    a.click();
+                    chunks = [];
+                };
+
+                recorder.start();
+                this.classList.add('recording');
+                this.textContent = "⏹️";
+
+                function updateRecord() {
+                    if (recorder.state === 'recording') {
+                        recordCtx.drawImage(video, 0, 0, recordCanvas.width, recordCanvas.height);
+                        recordCtx.drawImage(canvasAR, 0, 0);
+                        requestAnimationFrame(updateRecord);
+                    }
+                }
+                updateRecord();
+            } else {
+                recorder.stop();
+                this.classList.remove('recording');
+                this.textContent = "🔴";
+            }
+        });
+    </script>
+</body>
+</html>
