@@ -10,126 +10,84 @@
   <style>
     body {
       margin: 0;
-      overflow: hidden;
       font-family: sans-serif;
+      background: black;
+      color: white;
+      text-align: center;
     }
 
-    #pantallaInicio {
+    #inicio {
       position: fixed;
       inset: 0;
-      background: #000;
-      color: white;
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      z-index: 10000;
-      text-align: center;
     }
 
-    #pantallaInicio button {
-      margin-top: 20px;
+    button {
       padding: 16px 30px;
       font-size: 18px;
       border: none;
       border-radius: 8px;
       background: #ff4d4d;
       color: white;
-    }
-
-    a-scene {
-      pointer-events: none;
-    }
-
-    .controls {
-      position: fixed;
-      bottom: 20px;
-      width: 100%;
-      display: flex;
-      justify-content: space-around;
-      z-index: 9999;
-      pointer-events: auto;
-    }
-
-    .btn {
-      width: 70px;
-      height: 70px;
-      border-radius: 50%;
-      border: none;
-      font-size: 26px;
-      background: white;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-    }
-
-    .recording {
-      background: #ff4d4d;
-      color: white;
+      margin-top: 20px;
     }
   </style>
 </head>
 
 <body>
 
-<!-- PANTALLA DE INICIO (OBLIGATORIA EN iOS) -->
-<div id="pantallaInicio">
+<div id="inicio">
   <h2>Droyz AR</h2>
-  <p>Permite el acceso a la cámara para continuar</p>
-  <button id="btnIniciar">Iniciar AR</button>
-</div>
-
-<!-- ESCENA AR (OCULTA AL INICIO) -->
-<a-scene
-  id="escenaAR"
-  embedded
-  vr-mode-ui="enabled: false"
-  arjs="sourceType: webcam; trackingMethod: best; debugUIEnabled: false;"
-  renderer="alpha: true; antialias: true;"
-  style="display:none;"
->
-
-  <a-entity light="type: ambient; intensity: 1.4"></a-entity>
-  <a-entity position="1 2 1" light="type: directional; intensity: 0.8"></a-entity>
-
-  <a-plane
-    id="suelo"
-    position="0 -1.5 -4"
-    rotation="-90 0 0"
-    width="10"
-    height="10"
-    visible="false">
-  </a-plane>
-
-  <a-entity
-    id="personaje"
-    gltf-model="https://raw.githubusercontent.com/KarenFrancellino/ar-models/main/DROYZ_ANIMAPP_SiCkJacken_v005.glb"
-    position="0 -1.5 -4"
-    scale="2 2 2"
-    animation-mixer>
-  </a-entity>
-
-  <a-entity
-    camera
-    cursor="rayOrigin: mouse"
-    raycaster="objects: #suelo">
-  </a-entity>
-
-</a-scene>
-
-<div class="controls">
-  <button id="btnFoto" class="btn">📸</button>
-  <button id="btnVideo" class="btn">●</button>
+  <p>Autoriza el uso de la cámara</p>
+  <button id="btnPermiso">Continuar</button>
 </div>
 
 <script>
-  const btnIniciar = document.getElementById('btnIniciar');
-  const pantallaInicio = document.getElementById('pantallaInicio');
-  const escenaAR = document.getElementById('escenaAR');
+  const btn = document.getElementById('btnPermiso');
 
-  /* ========= INICIO AR (GESTO USUARIO) ========= */
-  btnIniciar.addEventListener('click', () => {
-    pantallaInicio.style.display = 'none';
-    escenaAR.style.display = 'block';
+  btn.addEventListener('click', async () => {
+    try {
+      // 🔑 PEDIDO DE PERMISIÓN REAL (GESTO USUARIO)
+      await navigator.mediaDevices.getUserMedia({ video: true });
+
+      // Si el usuario aceptó → crear AR
+      iniciarAR();
+
+    } catch (e) {
+      alert('Es necesario permitir la cámara');
+    }
   });
+
+  function iniciarAR() {
+    document.body.innerHTML = `
+      <a-scene
+        embedded
+        vr-mode-ui="enabled:false"
+        arjs="sourceType: webcam; trackingMethod: best; debugUIEnabled: false;"
+        renderer="alpha:true; antialias:true">
+
+        <a-entity light="type: ambient; intensity:1.4"></a-entity>
+        <a-entity position="1 2 1" light="type: directional; intensity:0.8"></a-entity>
+
+        <a-plane id="suelo" position="0 -1.5 -4"
+          rotation="-90 0 0" width="10" height="10" visible="false"></a-plane>
+
+        <a-entity id="personaje"
+          gltf-model="https://raw.githubusercontent.com/KarenFrancellino/ar-models/main/DROYZ_ANIMAPP_SiCkJacken_v005.glb"
+          position="0 -1.5 -4"
+          scale="2 2 2"
+          animation-mixer></a-entity>
+
+        <a-entity camera
+          cursor="rayOrigin: mouse"
+          raycaster="objects: #suelo"></a-entity>
+
+      </a-scene>
+    `;
+  }
 </script>
 
 </body>
