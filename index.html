@@ -4,24 +4,43 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 
-  <!-- A-Frame -->
   <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
-  <!-- AR.js -->
   <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
 
   <style>
     body {
       margin: 0;
       overflow: hidden;
-      touch-action: none;
+      font-family: sans-serif;
     }
 
-    /* Evita que el canvas AR bloquee los botones */
+    #pantallaInicio {
+      position: fixed;
+      inset: 0;
+      background: #000;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 10000;
+      text-align: center;
+    }
+
+    #pantallaInicio button {
+      margin-top: 20px;
+      padding: 16px 30px;
+      font-size: 18px;
+      border: none;
+      border-radius: 8px;
+      background: #ff4d4d;
+      color: white;
+    }
+
     a-scene {
       pointer-events: none;
     }
 
-    /* Controles UI */
     .controls {
       position: fixed;
       bottom: 20px;
@@ -51,18 +70,26 @@
 
 <body>
 
+<!-- PANTALLA DE INICIO (OBLIGATORIA EN iOS) -->
+<div id="pantallaInicio">
+  <h2>Droyz AR</h2>
+  <p>Permite el acceso a la cámara para continuar</p>
+  <button id="btnIniciar">Iniciar AR</button>
+</div>
+
+<!-- ESCENA AR (OCULTA AL INICIO) -->
 <a-scene
+  id="escenaAR"
   embedded
   vr-mode-ui="enabled: false"
   arjs="sourceType: webcam; trackingMethod: best; debugUIEnabled: false;"
   renderer="alpha: true; antialias: true;"
+  style="display:none;"
 >
 
-  <!-- Luces -->
   <a-entity light="type: ambient; intensity: 1.4"></a-entity>
   <a-entity position="1 2 1" light="type: directional; intensity: 0.8"></a-entity>
 
-  <!-- Plano invisible para detectar el toque -->
   <a-plane
     id="suelo"
     position="0 -1.5 -4"
@@ -72,7 +99,6 @@
     visible="false">
   </a-plane>
 
-  <!-- Personaje 3D -->
   <a-entity
     id="personaje"
     gltf-model="https://raw.githubusercontent.com/KarenFrancellino/ar-models/main/DROYZ_ANIMAPP_SiCkJacken_v005.glb"
@@ -81,7 +107,6 @@
     animation-mixer>
   </a-entity>
 
-  <!-- Cámara con cursor para móviles -->
   <a-entity
     camera
     cursor="rayOrigin: mouse"
@@ -90,75 +115,22 @@
 
 </a-scene>
 
-<!-- BOTONES -->
 <div class="controls">
   <button id="btnFoto" class="btn">📸</button>
   <button id="btnVideo" class="btn">●</button>
 </div>
 
 <script>
-  const personaje = document.querySelector('#personaje');
-  const suelo = document.querySelector('#suelo');
-  const escena = document.querySelector('a-scene');
+  const btnIniciar = document.getElementById('btnIniciar');
+  const pantallaInicio = document.getElementById('pantallaInicio');
+  const escenaAR = document.getElementById('escenaAR');
 
-  /* ==========================
-     MOVIMIENTO DEL PERSONAJE
-     ========================== */
-  suelo.addEventListener('click', (e) => {
-    const punto = e.detail.intersection.point;
-    personaje.setAttribute('position', `${punto.x} -1.5 ${punto.z}`);
+  /* ========= INICIO AR (GESTO USUARIO) ========= */
+  btnIniciar.addEventListener('click', () => {
+    pantallaInicio.style.display = 'none';
+    escenaAR.style.display = 'block';
   });
+</script>
 
-  /* ==========================
-     FOTO (CÁMARA + 3D)
-     ========================== */
-  document.getElementById('btnFoto').addEventListener('click', () => {
-    const video = document.querySelector('video');
-    const canvas3D = escena.renderer.domElement;
-
-    const canvas = document.createElement('canvas');
-    canvas.width = canvas3D.width;
-    canvas.height = canvas3D.height;
-    const ctx = canvas.getContext('2d');
-
-    // Forzar render del frame actual
-    escena.renderer.render(escena.object3D, escena.camera);
-
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    ctx.drawImage(canvas3D, 0, 0);
-
-    const enlace = document.createElement('a');
-    enlace.href = canvas.toDataURL('image/png');
-    enlace.download = 'droyz-foto.png';
-    enlace.click();
-  });
-
-  /* ==========================
-     VÍDEO (CÁMARA + 3D)
-     ========================== */
-  let grabador;
-  let fragmentos = [];
-
-  document.getElementById('btnVideo').addEventListener('click', function () {
-
-    if (!grabador || grabador.state === 'inactive') {
-
-      const video = document.querySelector('video');
-      const canvas3D = escena.renderer.domElement;
-
-      const canvas = document.createElement('canvas');
-      canvas.width = canvas3D.width;
-      canvas.height = canvas3D.height;
-      const ctx = canvas.getContext('2d');
-
-      const stream = canvas.captureStream(30);
-      grabador = new MediaRecorder(stream, { mimeType: 'video/webm' });
-
-      grabador.ondataavailable = e => fragmentos.push(e.data);
-
-      grabador.onstop = () => {
-        const blob = new Blob(fragmentos, { type: 'video/webm' });
-        const url = URL.createObjectURL(blob);
-        const enlace = document.createElement('a');
-        enlace.href = url;
-        enl
+</body>
+</html>
