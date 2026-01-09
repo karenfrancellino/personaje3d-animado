@@ -1,9 +1,9 @@
 # personaje3d-animado
 
-FlutterFlow (UI / Fluxo)
-        ↓
-Flutter (Custom Code)
-        ↓
-Unity (AR Foundation)
-        ↓
-ARKit (iOS) / ARCore (Android)
+## AR Architecture
+- Unity AR Foundation
+- Flutter native capture
+- FlutterFlow UI
+
+## Known limitations
+- Web AR is prototype only
