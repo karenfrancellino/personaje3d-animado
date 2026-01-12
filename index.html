@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Droyz AR Experience</title>
 
-<!-- A-Frame y AR.js -->
+<!-- A-Frame + AR.js -->
 <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
 <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
@@ -17,7 +17,6 @@ body {
   background: black;
 }
 
-/* CONTROLES FIJOS (no desaparecen en iOS) */
 .controls {
   position: fixed;
   bottom: 20px;
@@ -48,101 +47,114 @@ body {
 
 <body>
 
-<!-- ESCENA AR -->
 <a-scene
   embedded
   vr-mode-ui="enabled: false"
-  renderer="preserveDrawingBuffer: true; alpha: true;"
+  renderer="alpha: true; preserveDrawingBuffer: true;"
   arjs="sourceType: webcam; debugUIEnabled: false;"
 >
+  <a-assets>
+    <a-asset-item
+      id="modelo"
+      src="https://raw.githubusercontent.com/KarenFrancellino/ar-models/main/DROYZ_ANIMAPP_SiCkJacken_v005.glb">
+    </a-asset-item>
+  </a-assets>
 
-<a-assets>
-  <a-asset-item
-    id="modelo"
-    src="https://raw.githubusercontent.com/KarenFrancellino/ar-models/main/DROYZ_ANIMAPP_SiCkJacken_v005.glb">
-  </a-asset-item>
-</a-assets>
+  <!-- LUCES -->
+  <a-entity light="type: ambient; intensity: 1.3"></a-entity>
+  <a-entity light="type: directional; position: 1 2 1"></a-entity>
 
-<!-- LUCES -->
-<a-entity light="type: ambient; intensity: 1.3"></a-entity>
-<a-entity light="type: directional; position: 1 2 1"></a-entity>
-
-<!-- CÁMARA + PERSONAJE PEGADO A LA PANTALLA -->
-<a-entity camera id="camara">
-  <a-entity
-    id="personaje"
-    gltf-model="#modelo"
-    position="0 -0.8 -3"
-    scale="2 2 2"
-    animation-mixer
-  ></a-entity>
-</a-entity>
+  <!-- CÁMERA -->
+  <a-entity camera>
+    <a-entity
+      id="personaje"
+      gltf-model="#modelo"
+      position="0 -0.8 -3"
+      scale="2 2 2"
+      animation-mixer
+    ></a-entity>
+  </a-entity>
 
 </a-scene>
 
-<!-- BOTONES -->
+<!-- BOTÕES -->
 <div class="controls">
   <button id="btnFoto" class="btn">📸</button>
   <button id="btnVideo" class="btn">🔴</button>
 </div>
 
 <script>
-const personaje = document.querySelector('#personaje');
+/* --------------------------------------------------
+   DETECÇÃO DE iOS
+-------------------------------------------------- */
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 const escena = document.querySelector('a-scene');
+const personaje = document.querySelector('#personaje');
+const btnFoto = document.querySelector('#btnFoto');
 const btnVideo = document.querySelector('#btnVideo');
 
 /* --------------------------------------------------
-   MOVIMIENTO 2D (NO CAMBIA TAMAÑO NI PROFUNDIDAD)
+   MOVIMENTO 2D (Z FIXO)
 -------------------------------------------------- */
 document.body.addEventListener('click', (e) => {
   const x = (e.clientX / window.innerWidth - 0.5) * 1.5;
   const y = -(e.clientY / window.innerHeight - 0.5) * 1;
 
-  personaje.setAttribute('position', {
-    x: x,
-    y: y,
-    z: -3 // Z FIJO → el tamaño no cambia
-  });
+  personaje.setAttribute('position', { x, y, z: -3 });
 });
 
 /* --------------------------------------------------
-   FOTO (SCREENSHOT)
+   FOTO
 -------------------------------------------------- */
-document.querySelector('#btnFoto').onclick = () => {
+btnFoto.onclick = () => {
+  if (isIOS) {
+    alert('Captura de foto não suportada no iOS via navegador.');
+    return;
+  }
+
   const canvas = escena.renderer.domElement;
-  const enlace = document.createElement('a');
-  enlace.download = 'Droyz_AR_Foto.png';
-  enlace.href = canvas.toDataURL('image/png');
-  enlace.click();
+  const link = document.createElement('a');
+  link.download = 'Droyz_AR_Foto.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
 };
 
 /* --------------------------------------------------
-   VIDEO (LIMITADO EN iOS - MEJOR EN ANDROID)
+   VÍDEO (DESATIVADO NO iOS)
 -------------------------------------------------- */
-let grabador;
-let partes = [];
+let recorder;
+let chunks = [];
 
 btnVideo.onclick = () => {
-  if (!grabador || grabador.state === 'inactive') {
-    const stream = escena.renderer.domElement.captureStream(30);
-    grabador = new MediaRecorder(stream, { mimeType: 'video/webm' });
+  if (isIOS) {
+    alert('Gravação de vídeo não suportada no iOS via navegador.');
+    return;
+  }
 
-    grabador.ondataavailable = e => partes.push(e.data);
-    grabador.onstop = () => {
-      const blob = new Blob(partes, { type: 'video/webm' });
+  if (!recorder || recorder.state === 'inactive') {
+    const stream = escena.renderer.domElement.captureStream(30);
+
+    recorder = new MediaRecorder(stream, {
+      mimeType: 'video/webm; codecs=vp8'
+    });
+
+    recorder.ondataavailable = e => chunks.push(e.data);
+
+    recorder.onstop = () => {
+      const blob = new Blob(chunks, { type: 'video/webm' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = 'Droyz_AR_Video.webm';
       a.click();
-      partes = [];
+      chunks = [];
     };
 
-    grabador.start();
+    recorder.start();
     btnVideo.classList.add('recording');
     btnVideo.textContent = '⏹️';
   } else {
-    grabador.stop();
+    recorder.stop();
     btnVideo.classList.remove('recording');
     btnVideo.textContent = '🔴';
   }
