@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Droyz AR Experience</title>
+<title>Droyz AR Teste Completo</title>
 
+<!-- A-Frame + AR.js -->
 <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
 <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
@@ -38,9 +39,10 @@ body { margin: 0; overflow: hidden; background: black; }
 
 <body>
 
-<!-- Seletor de skins desbloqueadas -->
+<!-- Seletor de skins -->
 <div class="skin-selector" id="skinSelector"></div>
 
+<!-- Cena AR -->
 <a-scene
   embedded
   vr-mode-ui="enabled: false"
@@ -84,199 +86,27 @@ const btnFoto = document.getElementById('btnFoto');
 const btnVideo = document.getElementById('btnVideo');
 
 /* ---------------------------
-   Simulação de QR Code / senha
-   Define quais skins estão desbloqueadas
---------------------------- */
-function getUnlockedSkins(code) {
-  // Exemplo: code pode vir do QR + senha
-  switch(code) {
-    case "1234": return ["skin1","skin2"];
-    case "5678": return ["skin2","skin3"];
-    default: return ["skin1"]; // skin padrão
-  }
-}
-
-// Simula leitura do QR / senha
-const userCode = prompt("Insira o código/senha do QR:");
-const unlockedSkins = getUnlockedSkins(userCode);
-
-// Cria botões do seletor de skins
-unlockedSkins.forEach(skinId => {
-  const btn = document.createElement("button");
-  btn.classList.add("skin-btn");
-  btn.dataset.skin = skinId;
-  btn.textContent = skinId.toUpperCase();
-  btn.onclick = () => {
-    personaje.removeAttribute('gltf-model');
-    setTimeout(() => {
-      personaje.setAttribute('gltf-model', `#${skinId}`);
-      personaje.setAttribute('animation-mixer', '');
-    }, 50);
-  };
-  skinSelector.appendChild(btn);
-});
-
-/* ---------------------------
-   Movimento 2D
---------------------------- */
-document.body.addEventListener('click', (e) => {
-  const x = (e.clientX / window.innerWidth - 0.5) * 1.5;
-  const y = -(e.clientY / window.innerHeight - 0.5) * 1;
-  personaje.setAttribute('position', { x, y, z: -3 });
-});
-
-/* ---------------------------
-   Foto
---------------------------- */
-btnFoto.onclick = () => {
-  if (isIOS) {
-    alert('Captura de foto não suportada no iOS via navegador.');
-    return;
-  }
-  const canvas = escena.renderer.domElement;
-  const a = document.createElement('a');
-  a.download = 'Droyz_AR_Foto.png';
-  a.href = canvas.toDataURL('image/png');
-  a.click();
-};
-
-/* ---------------------------
-   Vídeo
---------------------------- */
-let recorder, chunks = [];
-btnVideo.onclick = () => {
-  if (isIOS) {
-    alert('Gravação de vídeo não suportada no iOS via navegador.');
-    return;
-  }
-
-  if (!recorder || recorder.state === 'inactive') {
-    const stream = escena.renderer.domElement.captureStream(30);
-    recorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp8' });
-
-    recorder.ondataavailable = e => chunks.push(e.data);
-    recorder.onstop = () => {
-      const blob = new Blob(chunks, { type: 'video/webm' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'Droyz_AR_Video.webm';
-      a.click();
-      chunks = [];
-    };
-
-    recorder.start();
-    btnVideo.classList.add('recording');
-    btnVideo.textContent = '⏹️';
-  } else {
-    recorder.stop();
-    btnVideo.classList.remove('recording');
-    btnVideo.textContent = '🔴';
-  }
-};
-</script>
-
-</body>
-</html>
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Droyz AR Experience</title>
-
-<script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
-<script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
-
-<style>
-body { margin: 0; overflow: hidden; background: black; }
-
-.skin-selector {
-  position: fixed; top: 15px; left: 0; width: 100%;
-  display: flex; justify-content: center; gap: 12px; z-index: 9999;
-}
-
-.skin-btn {
-  padding: 8px 14px; border-radius: 20px; border: 2px solid white;
-  background: rgba(0,0,0,0.7); color: white; font-size: 14px; cursor: pointer;
-}
-
-.controls {
-  position: fixed; bottom: 20px; left: 0; width: 100%;
-  display: flex; justify-content: center; gap: 20px; z-index: 9999;
-}
-
-.btn {
-  width: 70px; height: 70px; border-radius: 50%; border: 4px solid white;
-  background: rgba(0,0,0,0.7); color: white; font-size: 26px; cursor: pointer;
-}
-
-.recording { background: red !important; }
-</style>
-</head>
-
-<body>
-
-<!-- Seletor de skins desbloqueadas -->
-<div class="skin-selector" id="skinSelector"></div>
-
-<a-scene
-  embedded
-  vr-mode-ui="enabled: false"
-  renderer="alpha: true; preserveDrawingBuffer: true;"
-  arjs="sourceType: webcam; debugUIEnabled: false;"
->
-<a-assets>
-  <a-asset-item id="skin1" src="https://raw.githubusercontent.com/KarenFrancellino/ar-models/main/DROYZ_ANIMAPP_SiCkJacken_v005.glb"></a-asset-item>
-  <a-asset-item id="skin2" src="https://raw.githubusercontent.com/KarenFrancellino/ar-models/main/DROYZ_ANIMAPP_SiCkJacken_v006.glb"></a-asset-item>
-  <a-asset-item id="skin3" src="https://raw.githubusercontent.com/KarenFrancellino/ar-models/main/DROYZ_ANIMAPP_SiCkJacken_v007.glb"></a-asset-item>
-</a-assets>
-
-<!-- Luzes -->
-<a-entity light="type: ambient; intensity: 1.3"></a-entity>
-<a-entity light="type: directional; position: 1 2 1"></a-entity>
-
-<!-- Câmera + personagem -->
-<a-entity camera>
-  <a-entity
-    id="personaje"
-    gltf-model="#skin1" <!-- modelo inicial padrão -->
-    position="0 -0.8 -3"
-    scale="2 2 2"
-    animation-mixer
-  ></a-entity>
-</a-entity>
-</a-scene>
-
-<!-- Botões -->
-<div class="controls">
-  <button id="btnFoto" class="btn">📸</button>
-  <button id="btnVideo" class="btn">🔴</button>
-</div>
-
-<script>
-const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-const personaje = document.querySelector('#personaje');
-const escena = document.querySelector('a-scene');
-const skinSelector = document.getElementById('skinSelector');
-const btnFoto = document.getElementById('btnFoto');
-const btnVideo = document.getElementById('btnVideo');
-
-/* ---------------------------
-   LACUNA: integrar aqui seu código existente
+   LACUNA: Aqui você integra seu código real
    - QR Code
    - Código/Senha
    - Personagem desbloqueado
    - Lista de skins liberadas
 --------------------------- */
 
-// Exemplo de placeholder temporário:
-const unlockedSkins = ["skin1","skin2"]; 
+// Para teste: simula QR/código e desbloqueia skins
+const simulatedUserCode = "TESTE";
+function getUnlockedSkins(code) {
+  switch(code) {
+    case "TESTE": return ["skin1","skin2","skin3"]; // todas desbloqueadas
+    default: return ["skin1"];
+  }
+}
+
+const unlockedSkins = getUnlockedSkins(simulatedUserCode);
 const initialSkin = unlockedSkins[0];
 
 /* ---------------------------
-   Criar botões do seletor de skins
+   Criação dos botões do seletor
 --------------------------- */
 unlockedSkins.forEach(skinId => {
   const btn = document.createElement("button");
@@ -293,7 +123,7 @@ unlockedSkins.forEach(skinId => {
   skinSelector.appendChild(btn);
 });
 
-// Ajusta personagem inicial de acordo com skin desbloqueada
+// Ajusta personagem inicial
 personaje.setAttribute('gltf-model', `#${initialSkin}`);
 
 /* ---------------------------
