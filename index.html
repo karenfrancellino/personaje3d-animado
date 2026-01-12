@@ -107,4 +107,74 @@ unlockedSkins.forEach(skinId => {
   btn.dataset.skin = skinId;
   btn.textContent = skinId.toUpperCase();
   btn.onclick = () => {
-    personaje.remov
+    personaje.removeAttribute('gltf-model');
+    setTimeout(() => {
+      personaje.setAttribute('gltf-model', `#${skinId}`);
+      personaje.setAttribute('animation-mixer', '');
+    }, 50);
+  };
+  skinSelector.appendChild(btn);
+});
+
+/* ---------------------------
+   Movimento 2D
+--------------------------- */
+document.body.addEventListener('click', (e) => {
+  const x = (e.clientX / window.innerWidth - 0.5) * 1.5;
+  const y = -(e.clientY / window.innerHeight - 0.5) * 1;
+  personaje.setAttribute('position', { x, y, z: -3 });
+});
+
+/* ---------------------------
+   Foto
+--------------------------- */
+btnFoto.onclick = () => {
+  if (isIOS) {
+    alert('Captura de foto não suportada no iOS via navegador.');
+    return;
+  }
+  const canvas = escena.renderer.domElement;
+  const a = document.createElement('a');
+  a.download = 'Droyz_AR_Foto.png';
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+};
+
+/* ---------------------------
+   Vídeo
+--------------------------- */
+let recorder, chunks = [];
+btnVideo.onclick = () => {
+  if (isIOS) {
+    alert('Gravação de vídeo não suportada no iOS via navegador.');
+    return;
+  }
+
+  if (!recorder || recorder.state === 'inactive') {
+    const stream = escena.renderer.domElement.captureStream(30);
+    recorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp8' });
+
+    recorder.ondataavailable = e => chunks.push(e.data);
+    recorder.onstop = () => {
+      const blob = new Blob(chunks, { type: 'video/webm' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'Droyz_AR_Video.webm';
+      a.click();
+      chunks = [];
+    };
+
+    recorder.start();
+    btnVideo.classList.add('recording');
+    btnVideo.textContent = '⏹️';
+  } else {
+    recorder.stop();
+    btnVideo.classList.remove('recording');
+    btnVideo.textContent = '🔴';
+  }
+};
+</script>
+
+</body>
+</html>
