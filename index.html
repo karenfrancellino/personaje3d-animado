@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title></title>
+  <title>Droyz AR Teste</title>
   <meta name="theme-color" content="#000000">
 
   <!-- A-Frame + AR.js -->
@@ -13,69 +13,14 @@
   <script src="https://cdn.jsdelivr.net/npm/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
 
   <style>
-    html,
-    body {
+    html, body {
       margin: 0;
       padding: 0;
       width: 100%;
       height: 100%;
       overflow: hidden;
       background: transparent;
-      /* Changed from black to see video feed */
       font-family: sans-serif;
-    }
-
-    .skin-selector {
-      position: fixed;
-      top: 20px;
-      left: 0;
-      width: 100%;
-      display: flex;
-      gap: 15px;
-      z-index: 9999;
-      overflow-x: auto;
-      padding: 10px 20px;
-      box-sizing: border-box;
-      scroll-behavior: smooth;
-      -webkit-overflow-scrolling: touch;
-      background: linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent);
-    }
-
-    /* Hide scrollbar for Chrome, Safari and Opera */
-    .skin-selector::-webkit-scrollbar {
-      display: none;
-    }
-
-    /* Hide scrollbar for IE, Edge and Firefox */
-    .skin-selector {
-      -ms-overflow-style: none;
-      /* IE and Edge */
-      scrollbar-width: none;
-      /* Firefox */
-    }
-
-    .skin-btn {
-      flex: 0 0 auto;
-      width: 80px;
-      height: 80px;
-      border-radius: 12px;
-      border: 2px solid rgba(255, 255, 255, 0.3);
-      background: rgba(255, 255, 255, 0.1);
-      color: white;
-      font-size: 12px;
-      cursor: pointer;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s ease;
-      backdrop-filter: blur(5px);
-    }
-
-    .skin-btn.active {
-      border-color: #00ffcc;
-      background: rgba(0, 255, 204, 0.2);
-      transform: scale(1.1);
     }
 
     .controls {
@@ -88,7 +33,6 @@
       gap: 40px;
       z-index: 9999;
       pointer-events: none;
-      /* Let clicks pass through around buttons */
     }
 
     .btn {
@@ -119,467 +63,142 @@
     }
 
     @keyframes pulse {
-      0% {
-        box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7);
-      }
-
-      70% {
-        box-shadow: 0 0 0 10px rgba(255, 0, 0, 0);
-      }
-
-      100% {
-        box-shadow: 0 0 0 0 rgba(255, 0, 0, 0);
-      }
+      0% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(255, 0, 0, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
     }
   </style>
 </head>
 
 <body>
 
-  <!-- Seletor de skins (Desativado para testes) -->
-  <!-- <div class="skin-selector" id="skinSelector"></div> -->
-
   <!-- Cena AR -->
   <a-scene vr-mode-ui="enabled: false" loading-screen="enabled: false;"
-    renderer="alpha: true; preserveDrawingBuffer: true;" arjs="sourceType: webcam; debugUIEnabled: false;"
-    gesture-detector id="scene">
+    renderer="alpha: true" arjs="sourceType: webcam; debugUIEnabled: false;" gesture-detector id="scene">
 
     <!-- Assets -->
     <a-assets>
       <a-asset-item id="skin1"
         src="https://github.com/karenfrancellino/ar-models/raw/refs/heads/main/DROYZ_ANIMAPP_SiCkJacken_v005.glb"></a-asset-item>
-      <!-- <a-asset-item id="skin2" src="https://raw.githubusercontent.com/KarenFrancellino/ar-models/main/DROYZ_ANIMAPP_SiCkJacken_v006.glb"></a-asset-item> -->
-      <!-- <a-asset-item id="skin3" src="https://raw.githubusercontent.com/KarenFrancellino/ar-models/main/DROYZ_ANIMAPP_SiCkJacken_v007.glb"></a-asset-item> -->
     </a-assets>
 
     <!-- Luzes -->
     <a-entity light="type: ambient; intensity: 1.3"></a-entity>
     <a-entity light="type: directional; position: 1 2 1"></a-entity>
 
-    <!-- Câmera+personagem -->
-    <a-entity camera>
-      <a-entity id="personaje" gltf-model="#skin1" position="0 -0.8 -3" scale="2 2 2" animation-mixer class="clickable"
-        gesture-handler="minScale: 0.5; maxScale: 10"></a-entity>
-    </a-entity>
+    <!-- Personagem direto na cena -->
+    <a-entity id="personaje" gltf-model="#skin1" position="0 -0.8 -3" scale="2 2 2" animation-mixer gesture-handler></a-entity>
   </a-scene>
-  < !-- Botões -->
-    <div class="controls">
-      <button id="btnFoto" class="btn">📸</button>
-      <button id="btnVideo" class="btn">🔴</button>
-    </div>
-    <script>
 
-      /* -------------------------------------------------------------------------
-     COMPONENTS: Gesture Detector & Handler
-     (Implemented inline to avoid external dependencies for this prototype)
-     ------------------------------------------------------------------------- */
-      AFRAME.registerComponent("gesture-detector", {
-        schema: {
-          element: {
-            default: ""
-          }
+  <!-- Botões -->
+  <div class="controls">
+    <button id="btnFoto" class="btn">📸</button>
+    <button id="btnVideo" class="btn">🔴</button>
+  </div>
+
+  <script>
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const personaje = document.querySelector('#personaje');
+    const escena = document.querySelector('a-scene');
+    const btnFoto = document.getElementById('btnFoto');
+    const btnVideo = document.getElementById('btnVideo');
+
+    /* ---------------------------
+       BRIDGE COMMUNICATION
+    --------------------------- */
+    function sendToApp(type, dataUrl) {
+      console.log(`Sending ${type} to app...`);
+      const payload = JSON.stringify({ type, data: dataUrl });
+      let sent = false;
+
+      try {
+        if (window.FlutterFlow?.postMessage) {
+          window.FlutterFlow.postMessage(payload);
+          sent = true;
+        } else if (window.flutter_inappwebview?.callHandler) {
+          window.flutter_inappwebview.callHandler('onCapture', payload);
+          sent = true;
+        } else if (window.Params?.postMessage) {
+          window.Params.postMessage(payload);
+          sent = true;
         }
-
-        ,
-        init: function () {
-          this.targetElement = this.data.element && document.querySelector(this.data.element);
-          if (!this.targetElement) this.targetElement = this.el;
-
-          this.internalState = {
-            previousState: null
-          }
-
-            ;
-          this.emitGestureEvent = this.emitGestureEvent.bind(this);
-          this.targetElement.addEventListener("touchstart", this.emitGestureEvent);
-          this.targetElement.addEventListener("touchend", this.emitGestureEvent);
-          this.targetElement.addEventListener("touchmove", this.emitGestureEvent);
-        }
-
-        ,
-        remove: function () {
-          this.targetElement.removeEventListener("touchstart", this.emitGestureEvent);
-          this.targetElement.removeEventListener("touchend", this.emitGestureEvent);
-          this.targetElement.removeEventListener("touchmove", this.emitGestureEvent);
-        }
-
-        ,
-        emitGestureEvent: function (event) {
-          const currentState = this.getTouchState(event);
-          const previousState = this.internalState.previousState;
-          const gestureContinuousEvents = ["onefingermove", "twofingermove", "pinch"];
-          const gestureStartEvents = ["onefingerstart", "twofingerstart"];
-          const gestureEndEvents = ["onefingerend", "twofingerend"];
-
-          const delta = {
-            x: 0, y: 0, z: 0, zoom: 0
-          }
-
-            ;
-
-          const center = {
-            x: 0, y: 0
-          }
-
-            ;
-
-          const eventDetail = {
-            position: center, spread: 0, startState: null, currentState: currentState
-          }
-
-            ;
-
-          if (previousState && currentState) {
-
-            // Calculate delta
-            if (currentState.touchCount === 1 && previousState.touchCount === 1) {
-              eventDetail.eventType = "onefingermove";
-              delta.x = currentState.touches[0].screenX - previousState.touches[0].screenX;
-              delta.y = currentState.touches[0].screenY - previousState.touches[0].screenY;
-
-              eventDetail.position = {
-                x: currentState.touches[0].screenX, y: currentState.touches[0].screenY
-              }
-
-                ;
-            }
-
-            else if (currentState.touchCount === 2 && previousState.touchCount === 2) {
-              eventDetail.eventType = "twofingermove"; // Logic can be extended for rotation/pinch
-              // Simple spread for zoom detection
-              const currentSpread = Math.hypot(currentState.touches[0].screenX - currentState.touches[1].screenX, currentState.touches[0].screenY - currentState.touches[1].screenY);
-              const previousSpread = Math.hypot(previousState.touches[0].screenX - previousState.touches[1].screenX, previousState.touches[0].screenY - previousState.touches[1].screenY);
-              delta.zoom = currentSpread - previousSpread;
-              eventDetail.spread = currentSpread;
-            }
-          }
-
-          if (!previousState && currentState) {
-            eventDetail.eventType = currentState.touchCount === 2 ? "twofingerstart" : "onefingerstart";
-            eventDetail.startState = currentState;
-          }
-
-          else if (previousState && !currentState) {
-            eventDetail.eventType = previousState.touchCount === 2 ? "twofingerend" : "onefingerend";
-          }
-
-          else if (previousState && currentState && previousState.touchCount !== currentState.touchCount) {
-            // Touch count changed - simpler to just reset
-          }
-
-          else if (eventDetail.eventType) {
-
-            // Dispatch
-            this.el.emit(eventDetail.eventType, {
-              detail: eventDetail, delta: delta
-            });
-          }
-
-          this.internalState.previousState = currentState;
-        }
-
-        ,
-        getTouchState: function (event) {
-          if (event.touches.length === 0) return null;
-          const touches = [];
-
-          for (let i = 0; i < event.touches.length; i++) {
-            touches.push({
-              screenX: event.touches[i].screenX, screenY: event.touches[i].screenY
-            });
-          }
-
-          return {
-            touchCount: event.touches.length, touches: touches
-          }
-
-            ;
-        }
-      });
-
-      AFRAME.registerComponent("gesture-handler", {
-        schema: {
-          enabled: {
-            default: true
-          }
-
-          ,
-          rotationFactor: {
-            default: 5
-          }
-
-          ,
-          minScale: {
-            default: 0.3
-          }
-
-          ,
-          maxScale: {
-            default: 8
-          }
-
-          ,
-        }
-
-        ,
-        init: function () {
-          this.handleScale = this.handleScale.bind(this);
-          this.handleRotation = this.handleRotation.bind(this);
-          this.handleDrag = this.handleDrag.bind(this); // New for position
-
-          this.isVisible = true;
-
-          // Listen to device / scene gestures
-          this.el.sceneEl.addEventListener("twofingermove", this.handleRotation);
-          this.el.sceneEl.addEventListener("onefingermove", this.handleDrag);
-        }
-
-        ,
-        remove: function () {
-          this.el.sceneEl.removeEventListener("twofingermove", this.handleRotation);
-          this.el.sceneEl.removeEventListener("onefingermove", this.handleDrag);
-        }
-
-        ,
-        handleRotation: function (event) {
-          if (!this.isVisible) return;
-          // Two finger move -> Rotate Y
-          // We use the 'delta.x' of the FIRST touch or the relative movement to determine rotation
-          // Simplified: Just use delta x of the "touch move" event passed by custom detector
-
-          const deltaX = event.detail.delta.x || 0;
-          // const deltaY = event.detail.delta.y || 0; // Pitch - ignored as per user request (Z locked)
-
-          this.el.object3D.rotation.y += deltaX * 0.01 * this.data.rotationFactor;
-        }
-
-        ,
-        handleDrag: function (event) {
-          if (!this.isVisible) return;
-          // One finger move -> Position X/Z (which corresponds to screen X/Y)
-
-          const deltaX = event.detail.delta.x || 0;
-          const deltaY = event.detail.delta.y || 0; // Screen Y corresponds to 3D Z usually
-
-          const speed = 0.01; // Adjust sensitivity
-          this.el.object3D.position.x += deltaX * speed;
-          this.el.object3D.position.z += deltaY * speed;
-        }
-
-        ,
-        handleScale: function (event) {
-          // Optional: Pinch to zoom
-        }
-      });
-
-
-      /* ---------------------------
-         APP LOGIC - URL PARAMS & CONFIG
-         --------------------------- */
-      // Helper to parse URL params
-      const urlParams = new URLSearchParams(window.location.search);
-      const paramCode = urlParams.get('code'); // e.g. ?code=USER123
-      const paramSkins = urlParams.get('skins'); // e.g. ?skins=skin1,skin2
-
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-      const personaje = document.querySelector('#personaje');
-      const escena = document.querySelector('a-scene');
-      const skinSelector = document.getElementById('skinSelector');
-      const btnFoto = document.getElementById('btnFoto');
-      const btnVideo = document.getElementById('btnVideo');
-
-      // Logic for unlocked skins
-      function getUnlockedSkins(code, skinsParam) {
-        // If skins are explicitly passed only usage those
-        if (skinsParam) {
-          return skinsParam.split(',').map(s => s.trim());
-        }
-
-        switch (code) {
-          case "TESTE": return ["skin1", "skin2", "skin3"];
-          default: return ["skin1"];
-        }
+      } catch (e) {
+        console.error("Error sending to bridge:", e);
       }
 
-      // Determine skins to show
-      // If ?skins is present, it overrides the 'code' logic
-      // let unlockedSkins = getUnlockedSkins(paramCode || "TESTE", paramSkins);
-      // let initialSkin = unlockedSkins[0];
+      return sent;
+    }
 
-      // Function to render the selector
-      // function renderSkinSelector(skins) {
-      //   if (!skinSelector) return;
-      //   skinSelector.innerHTML = ''; // Clear existing
+    /* ---------------------------
+       Foto
+    --------------------------- */
+    btnFoto.onclick = () => {
+      const canvas = escena.renderer.domElement;
+      const dataUrl = canvas.toDataURL('image/png');
+      const sent = sendToApp('photo', dataUrl);
 
-      //   skins.forEach((skinId, index) => {
-      //     const btn = document.createElement("div");
-      //     btn.classList.add("skin-btn");
-      //     if (index === 0) btn.classList.add("active");
+      if (!sent) {
+        const a = document.createElement('a');
+        a.download = `Droyz_AR_${Date.now()}.png`;
+        a.href = dataUrl;
+        a.click();
+      } else {
+        alert("Foto enviada para o App!");
+      }
+    };
 
-      //     // Create a placeholder icon or text
-      //     const label = document.createElement("span");
-      //     label.textContent = skinId.replace("skin", "Skin ").toUpperCase();
-      //     btn.appendChild(label);
+    /* ---------------------------
+       Vídeo
+    --------------------------- */
+    let recorder, chunks = [];
 
-      //     btn.onclick = () => {
-      //       // Visual feedback
-      //       document.querySelectorAll(".skin-btn").forEach(b => b.classList.remove("active"));
-      //       btn.classList.add("active");
+    btnVideo.onclick = () => {
+      if (isIOS) {
+        alert('A gravação de vídeo não é suportada no iOS via navegador.');
+        return;
+      }
 
-      //       // Logic
-      //       personaje.removeAttribute('gltf-model');
-
-      //       setTimeout(() => {
-      //         personaje.setAttribute('gltf-model', `#${skinId}`);
-      //         personaje.setAttribute('animation-mixer', '');
-      //       }, 50);
-      //     };
-      //     skinSelector.appendChild(btn);
-      //   });
-      // }
-
-      // Initial Render
-      // renderSkinSelector(unlockedSkins);
-
-      // Ajusta personagem inicial
-      // personaje.setAttribute('gltf-model', `#${initialSkin}`);
-
-      /* ---------------------------
-         Settings / Config
-         --------------------------- */
-      // const btnSettings = document.getElementById('btnSettings');
-      // if (btnSettings) {
-      //   btnSettings.onclick = () => {
-      //     const newSkins = prompt("IDs das skins (separados por vírgula):", unlockedSkins.join(','));
-      //     if (newSkins !== null) {
-      //       const skinsArray = newSkins.split(',').map(s => s.trim()).filter(s => s);
-      //       if (skinsArray.length > 0) {
-      //         unlockedSkins = skinsArray;
-      //         renderSkinSelector(unlockedSkins);
-      //         // Select first one
-      //         personaje.setAttribute('gltf-model', `#${unlockedSkins[0]}`);
-      //       }
-      //     }
-      //   };
-      // }
-
-      // FORCE DEFAULT SKIN FOR TESTING
-      personaje.setAttribute('gltf-model', '#skin1');
-      personaje.setAttribute('animation-mixer', '');
-      // NOTE: removed the old click listener that forced position calculation 
-      // The gesture-handler now handles touch drag for position.
-
-      /* ---------------------------
-     Foto
-  --------------------------- */
-      /* ---------------------------
-      BRIDGE COMMUNICATION
-      --------------------------- */
-      function sendToApp(type, dataUrl) {
-        console.log(`Sending ${type} to app...`);
-        const payload = JSON.stringify({ type: type, data: dataUrl });
-
-        let sent = false;
-
-        // 1. Specific FlutterFlow/WebView tokens
-        // Verifica se existe o objeto FlutterFlow ou canais comuns
+      if (!recorder || recorder.state === 'inactive') {
         try {
-          if (window.FlutterFlow && window.FlutterFlow.postMessage) {
-            window.FlutterFlow.postMessage(payload);
-            sent = true;
-          } else if (window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
-            window.flutter_inappwebview.callHandler('onCapture', payload);
-            sent = true;
-          } else if (window.Params && window.Params.postMessage) { // Generic
-            window.Params.postMessage(payload);
-            sent = true;
-          }
-        } catch (e) {
-          console.error("Error sending to bridge:", e);
-        }
+          const stream = escena.renderer.domElement.captureStream(30);
+          recorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp8' });
 
-        return sent;
-      }
+          recorder.ondataavailable = e => chunks.push(e.data);
+          recorder.onstop = () => {
+            const blob = new Blob(chunks, { type: 'video/webm' });
+            const reader = new FileReader();
+            reader.readAsDataURL(blob);
+            reader.onloadend = () => {
+              const base64data = reader.result;
+              const sent = sendToApp('video', base64data);
 
-      /* ---------------------------
-         Foto
-         --------------------------- */
-      btnFoto.onclick = () => {
-        const canvas = escena.renderer.domElement;
-        const dataUrl = canvas.toDataURL('image/png');
-
-        // Tenta enviar para o App
-        const sent = sendToApp('photo', dataUrl);
-
-        // Se não foi enviado (estamos no browser normal), faz download
-        if (!sent) {
-          const a = document.createElement('a');
-          a.download = `Droyz_AR_${Date.now()}.png`;
-          a.href = dataUrl;
-          a.click();
-        } else {
-          alert("Foto enviada para o App!");
-        }
-      };
-
-      /* ---------------------------
-         Vídeo
-         --------------------------- */
-      let recorder, chunks = [];
-
-      btnVideo.onclick = () => {
-        if (isIOS) {
-          alert('A gravação de vídeo não é nativamente suportada neste navegador no iOS.');
-          return;
-        }
-
-        if (!recorder || recorder.state === 'inactive') {
-          try {
-            const stream = escena.renderer.domElement.captureStream(30);
-            recorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp8' });
-            recorder.ondataavailable = e => chunks.push(e.data);
-            recorder.onstop = () => {
-              const blob = new Blob(chunks, { type: 'video/webm' });
-
-              // Converte Blob para Base64 para envio via ponte
-              const reader = new FileReader();
-              reader.readAsDataURL(blob);
-              reader.onloadend = () => {
-                const base64data = reader.result;
-
-                // Tenta enviar
-                const sent = sendToApp('video', base64data);
-
-                // Fallback download
-                if (!sent) {
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `Droyz_AR_Video_${Date.now()}.webm`;
-                  a.click();
-                } else {
-                  alert("Vídeo enviado para o App!");
-                }
-                chunks = [];
-              };
+              if (!sent) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Droyz_AR_Video_${Date.now()}.webm`;
+                a.click();
+              } else {
+                alert("Vídeo enviado para o App!");
+              }
+              chunks = [];
             };
+          };
 
-            recorder.start();
-            btnVideo.classList.add('recording');
-            btnVideo.textContent = '⏹️';
-          } catch (err) {
-            console.error("Recording error:", err);
-            alert("Erro ao iniciar gravação: " + err.message);
-          }
-        } else {
-          recorder.stop();
-          btnVideo.classList.remove('recording');
-          btnVideo.textContent = '🔴';
+          recorder.start();
+          btnVideo.classList.add('recording');
+          btnVideo.textContent = '⏹️';
+        } catch (err) {
+          console.error("Recording error:", err);
+          alert("Erro ao iniciar gravação: " + err.message);
         }
-      };
+      } else {
+        recorder.stop();
+        btnVideo.classList.remove('recording');
+        btnVideo.textContent = '🔴';
+      }
+    };
+  </script>
 
-      ;
-    </script>
 </body>
-
 </html>
