@@ -5,6 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title></title>
+  <meta name="theme-color" content="#000000">
 
   <!-- A-Frame + AR.js -->
   <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
@@ -139,18 +140,27 @@
   <!-- <div class="skin-selector" id="skinSelector"></div> -->
 
   <!-- Cena AR -->
-  <a-scene vr-mode-ui="enabled: false" renderer="alpha: true; preserveDrawingBuffer: true;"
-    arjs="sourceType: webcam; debugUIEnabled: false;" gesture-detector id="scene"><a-assets><a-asset-item id="skin1"
-        src="https://raw.githubusercontent.com/KarenFrancellino/ar-models/main/DROYZ_ANIMAPP_SiCkJacken_v005.glb"></a-asset-item><a-asset-item
-        id="skin2"
-        src="https://raw.githubusercontent.com/KarenFrancellino/ar-models/main/DROYZ_ANIMAPP_SiCkJacken_v006.glb"></a-asset-item><a-asset-item
-        id="skin3"
-        src="https://raw.githubusercontent.com/KarenFrancellino/ar-models/main/DROYZ_ANIMAPP_SiCkJacken_v007.glb"></a-asset-item></a-assets>
-    < !-- Luzes --><a-entity light="type: ambient; intensity: 1.3"></a-entity><a-entity
-        light="type: directional; position: 1 2 1"></a-entity>
-      < !-- Câmera+personagem --><a-entity camera><a-entity id="personaje" gltf-model="#skin1" position="0 -0.8 -3"
-            scale="2 2 2" animation-mixer class="clickable"
-            gesture-handler="minScale: 0.5; maxScale: 10"></a-entity></a-entity>
+  <a-scene vr-mode-ui="enabled: false" loading-screen="enabled: false;"
+    renderer="alpha: true; preserveDrawingBuffer: true;" arjs="sourceType: webcam; debugUIEnabled: false;"
+    gesture-detector id="scene">
+
+    <!-- Assets -->
+    <a-assets>
+      <a-asset-item id="skin1"
+        src="https://github.com/karenfrancellino/ar-models/raw/refs/heads/main/DROYZ_ANIMAPP_SiCkJacken_v005.glb"></a-asset-item>
+      <!-- <a-asset-item id="skin2" src="https://raw.githubusercontent.com/KarenFrancellino/ar-models/main/DROYZ_ANIMAPP_SiCkJacken_v006.glb"></a-asset-item> -->
+      <!-- <a-asset-item id="skin3" src="https://raw.githubusercontent.com/KarenFrancellino/ar-models/main/DROYZ_ANIMAPP_SiCkJacken_v007.glb"></a-asset-item> -->
+    </a-assets>
+
+    <!-- Luzes -->
+    <a-entity light="type: ambient; intensity: 1.3"></a-entity>
+    <a-entity light="type: directional; position: 1 2 1"></a-entity>
+
+    <!-- Câmera+personagem -->
+    <a-entity camera>
+      <a-entity id="personaje" gltf-model="#skin1" position="0 -0.8 -3" scale="2 2 2" animation-mixer class="clickable"
+        gesture-handler="minScale: 0.5; maxScale: 10"></a-entity>
+    </a-entity>
   </a-scene>
   < !-- Botões -->
     <div class="controls">
@@ -391,49 +401,48 @@
         }
       }
 
-      /*
       // Determine skins to show
       // If ?skins is present, it overrides the 'code' logic
-      let unlockedSkins = getUnlockedSkins(paramCode || "TESTE", paramSkins);
-      let initialSkin = unlockedSkins[0];
+      // let unlockedSkins = getUnlockedSkins(paramCode || "TESTE", paramSkins);
+      // let initialSkin = unlockedSkins[0];
 
       // Function to render the selector
-      function renderSkinSelector(skins) {
-        if (!skinSelector) return;
-        skinSelector.innerHTML = ''; // Clear existing
+      // function renderSkinSelector(skins) {
+      //   if (!skinSelector) return;
+      //   skinSelector.innerHTML = ''; // Clear existing
 
-        skins.forEach((skinId, index) => {
-          const btn = document.createElement("div");
-          btn.classList.add("skin-btn");
-          if (index === 0) btn.classList.add("active");
+      //   skins.forEach((skinId, index) => {
+      //     const btn = document.createElement("div");
+      //     btn.classList.add("skin-btn");
+      //     if (index === 0) btn.classList.add("active");
 
-          // Create a placeholder icon or text
-          const label = document.createElement("span");
-          label.textContent = skinId.replace("skin", "Skin ").toUpperCase();
-          btn.appendChild(label);
+      //     // Create a placeholder icon or text
+      //     const label = document.createElement("span");
+      //     label.textContent = skinId.replace("skin", "Skin ").toUpperCase();
+      //     btn.appendChild(label);
 
-          btn.onclick = () => {
-            // Visual feedback
-            document.querySelectorAll(".skin-btn").forEach(b => b.classList.remove("active"));
-            btn.classList.add("active");
+      //     btn.onclick = () => {
+      //       // Visual feedback
+      //       document.querySelectorAll(".skin-btn").forEach(b => b.classList.remove("active"));
+      //       btn.classList.add("active");
 
-            // Logic
-            personaje.removeAttribute('gltf-model');
+      //       // Logic
+      //       personaje.removeAttribute('gltf-model');
 
-            setTimeout(() => {
-              personaje.setAttribute('gltf-model', `#${skinId}`);
-              personaje.setAttribute('animation-mixer', '');
-            }, 50);
-          };
-          skinSelector.appendChild(btn);
-        });
-      }
+      //       setTimeout(() => {
+      //         personaje.setAttribute('gltf-model', `#${skinId}`);
+      //         personaje.setAttribute('animation-mixer', '');
+      //       }, 50);
+      //     };
+      //     skinSelector.appendChild(btn);
+      //   });
+      // }
 
       // Initial Render
-      renderSkinSelector(unlockedSkins);
+      // renderSkinSelector(unlockedSkins);
 
       // Ajusta personagem inicial
-      personaje.setAttribute('gltf-model', `#${initialSkin}`);
+      // personaje.setAttribute('gltf-model', `#${initialSkin}`);
 
       /* ---------------------------
          Settings / Config
@@ -453,11 +462,10 @@
       //     }
       //   };
       // }
-      */
 
       // FORCE DEFAULT SKIN FOR TESTING
       personaje.setAttribute('gltf-model', '#skin1');
-
+      personaje.setAttribute('animation-mixer', '');
       // NOTE: removed the old click listener that forced position calculation 
       // The gesture-handler now handles touch drag for position.
 
