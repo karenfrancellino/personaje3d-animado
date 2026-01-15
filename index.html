@@ -13,7 +13,8 @@
   <script src="https://cdn.jsdelivr.net/npm/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
 
   <style>
-    html, body {
+    html,
+    body {
       margin: 0;
       padding: 0;
       width: 100%;
@@ -32,7 +33,6 @@
       justify-content: center;
       gap: 40px;
       z-index: 9999;
-      pointer-events: none;
     }
 
     .btn {
@@ -63,9 +63,17 @@
     }
 
     @keyframes pulse {
-      0% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
-      70% { box-shadow: 0 0 0 10px rgba(255, 0, 0, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
+      0% {
+        box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7);
+      }
+
+      70% {
+        box-shadow: 0 0 0 10px rgba(255, 0, 0, 0);
+      }
+
+      100% {
+        box-shadow: 0 0 0 0 rgba(255, 0, 0, 0);
+      }
     }
   </style>
 </head>
@@ -73,27 +81,32 @@
 <body>
 
   <!-- Cena AR -->
-  <!-- ADDED preserveDrawingBuffer: true HERE to fix Photo Capture -->
+  <!-- preserveDrawingBuffer: true is CRITICAL for photo capture -->
   <a-scene embedded renderer="logarithmicDepthBuffer: true; preserveDrawingBuffer: true;"
-    arjs="sourceType: webcam; debugUIEnabled: false;">
+    arjs="sourceType: webcam; debugUIEnabled: false;" id="scene">
+
     <a-assets>
       <a-asset-item id="skin1"
         src="https://raw.githubusercontent.com/karenfrancellino/ar-models/main/DROYZ_ANIMAPP_SiCkJacken_v005.glb"></a-asset-item>
     </a-assets>
 
-    <!-- <a-entity gltf-model="#skin1" position="0 0 -3" scale="2 2 2" animation-mixer></a-entity> -->
-    <a-entity camera position="0 0 0"></a-entity>
+    <!-- Camera with Raycaster for Tap Interaction -->
+    <a-entity camera position="0 0 0" raycaster="objects: .clickable" cursor="rayOrigin: mouse"
+      emitevents="true"></a-entity>
 
-    <!-- Luzes -->
+    <!-- Lights -->
     <a-entity light="type: ambient; intensity: 1.3"></a-entity>
     <a-entity light="type: directional; position: 1 2 1"></a-entity>
 
-    <!-- Personagem direto na cena -->
-    <a-entity id="personaje" gltf-model="#skin1" position="0 -0.8 -3" scale="2 2 2" animation-mixer
-      gesture-handler></a-entity>
+    <!-- Object: Character -->
+    <!-- Position Z=-3 fixed (3 meters in front) -->
+    <!-- Class 'clickable' for raycaster -->
+    <a-entity id="personaje" class="clickable" gltf-model="#skin1" position="0 -0.8 -3" scale="2 2 2" animation-mixer>
+    </a-entity>
+
   </a-scene>
 
-  <!-- Botões -->
+  <!-- Buttons -->
   <div class="controls">
     <button id="btnFoto" class="btn">📸</button>
     <button id="btnVideo" class="btn">🔴</button>
@@ -106,26 +119,70 @@
     const btnFoto = document.getElementById('btnFoto');
     const btnVideo = document.getElementById('btnVideo');
 
-  <!-- Botões -->
-  <div class="controls">
-    <button id="btnFoto" class="btn">📸</button>
-    <button id="btnVideo" class="btn">🔴</button>
-  </div>
+    // --- TAP TO MOVE LOGIC ---
+    // User wants to move character in X/Y axes, keeping Z fixed at -3.
+    // We listen for clicks on the SCENE.
 
-  <script>
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    const personaje = document.querySelector('#personaje');
-    const escena = document.querySelector('a-scene');
-    const btnFoto = document.getElementById('btnFoto');
-    const btnVideo = document.getElementById('btnVideo');
+    document.querySelector('a-scene').addEventListener('click', function (evt) {
+      // Prevent moving if we clicked a button
+      if (evt.target.tagName === 'BUTTON' || evt.target.closest('button')) return;
 
-    /* ---------------------------
-       BRIDGE COMMUNICATION
-    --------------------------- */
-    function sendToApp(type, dataUrl) {
-      console.log(`Sending ${type} to app...`);
-      const payload = JSON.stringify({ type, data: dataUrl });
-      let sent = false;
+      const camera = escena.camera;
+      if (!camera) return;
+
+      // Mouse/Touch coordinates normalized (-1 to +1)
+      const mouse = new THREE.Vector2();
+      const rect = escena.renderer.domElement.getBoundingClientRect();
+
+      // Handle both MouseEvent and CustomEvent details if coming from cursor
+      let clientX = evt.clientX;
+      let clientY = evt.clientY;
+
+      if (evt.detail && (evt.detail.x !== undefined)) {
+        // Some A-Frame events pass x/y directly? Usually it's intersections.
+        // Let's rely on standard clientX/Y if native click, or detail if cursor.
+        // Actually, 'click' event from 'cursor="rayOrigin: mouse"' on scene background might be tricky.
+        // A simpler approach: Raycast using the event coordinates.
+      }
+
+      // If native event is missing coordinates (e.g. some headsets), fall back
+      if (clientX === undefined || clientY === undefined) {
+        if (evt.detail && evt.detail.cursorEl) {
+          // It's a cursor event, but we need screen coords.
+          // Let's assume touch/mouse event bubbles up.
+          return;
+        }
+      }
+
+      mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = - ((clientY - rect.top) / rect.height) * 2 + 1;
+
+      // Raycast from camera
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(mouse, camera);
+
+      // We want to find the point where Ray intersects the plane Z = -3 (relative to camera)
+      // Since camera is at 0,0,0, we check direction.
+      const dir = raycaster.ray.direction;
+      const targetZ = -3;
+
+      // If ray is pointing parallel to plane or backwards, ignore
+      if (Math.abs(dir.z) < 0.01 || dir.z > 0) return;
+
+      const distance = targetZ / dir.z;
+      const newPos = raycaster.ray.origin.clone().add(dir.clone().multiplyScalar(distance));
+
+      // Update Position: X and Y from calculation, Z fixed at -3, Y fixed at -0.8?
+      // User said "move in X and Y".
+      // Usually, moving Y upwards makes it look like it's flying if we don't have a floor.
+      // If user wants to "place it on the ground", usually we only change X and Z (depth).
+      // BUT user explicitly said "X and Y... not Z". Z means depth/distance.
+      // So if I click top-right corner, character goes top-right but stays 3m away.
+
+      personaje.object3D.position.set(newPos.x, newPos.y, -3);
+    });
+
+
     /* ---------------------------
        BRIDGE COMMUNICATION
     --------------------------- */
@@ -148,17 +205,16 @@
       } catch (e) {
         console.error("Error sending to bridge:", e);
       }
-
-      return sent;
-    }
       return sent;
     }
 
     /* ---------------------------
-       Foto
+       FOTO
     --------------------------- */
-    btnFoto.onclick = () => {
-      // FORCE RENDER before capture to ensure we have the latest frame
+    btnFoto.onclick = (e) => {
+      e.stopPropagation(); // Prevent scene click
+
+      // Force render for fresh frame
       escena.renderer.render(escena.object3D, escena.camera);
 
       const canvas = escena.renderer.domElement;
@@ -174,26 +230,15 @@
         alert("Foto enviada para o App!");
       }
     };
-      if (!sent) {
-        const a = document.createElement('a');
-        a.download = `Droyz_AR_${Date.now()}.png`;
-        a.href = dataUrl;
-        a.click();
-      } else {
-        alert("Foto enviada para o App!");
-      }
-    };
 
     /* ---------------------------
-       Vídeo
-    --------------------------- */
-    let recorder, chunks = [];
-    /* ---------------------------
-       Vídeo
+       VIDEO
     --------------------------- */
     let recorder, chunks = [];
 
-    btnVideo.onclick = () => {
+    btnVideo.onclick = (e) => {
+      e.stopPropagation(); // Prevent scene click
+
       if (isIOS) {
         alert('A gravação de vídeo não é nativamente suportada neste navegador no iOS.');
         return;
@@ -212,32 +257,7 @@
             reader.onloadend = () => {
               const base64data = reader.result;
               const sent = sendToApp('video', base64data);
-      if (!recorder || recorder.state === 'inactive') {
-        try {
-          const stream = escena.renderer.domElement.captureStream(30);
-          recorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp8' });
 
-          recorder.ondataavailable = e => chunks.push(e.data);
-          recorder.onstop = () => {
-            const blob = new Blob(chunks, { type: 'video/webm' });
-            const reader = new FileReader();
-            reader.readAsDataURL(blob);
-            reader.onloadend = () => {
-              const base64data = reader.result;
-              const sent = sendToApp('video', base64data);
-
-              if (!sent) {
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `Droyz_AR_Video_${Date.now()}.webm`;
-                a.click();
-              } else {
-                alert("Vídeo enviado para o App!");
-              }
-              chunks = [];
-            };
-          };
               if (!sent) {
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -265,21 +285,6 @@
       }
     };
   </script>
-
-          recorder.start();
-          btnVideo.classList.add('recording');
-          btnVideo.textContent = '⏹️';
-        } catch (err) {
-          console.error("Recording error:", err);
-          alert("Erro ao iniciar gravação: " + err.message);
-        }
-      } else {
-        recorder.stop();
-        btnVideo.classList.remove('recording');
-        btnVideo.textContent = '🔴';
-      }
-    };
-  </script>
-
 </body>
+
 </html>
