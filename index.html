@@ -13,8 +13,7 @@
   <script src="https://cdn.jsdelivr.net/npm/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
 
   <style>
-    html,
-    body {
+    html, body {
       margin: 0;
       padding: 0;
       width: 100%;
@@ -64,17 +63,9 @@
     }
 
     @keyframes pulse {
-      0% {
-        box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7);
-      }
-
-      70% {
-        box-shadow: 0 0 0 10px rgba(255, 0, 0, 0);
-      }
-
-      100% {
-        box-shadow: 0 0 0 0 rgba(255, 0, 0, 0);
-      }
+      0% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(255, 0, 0, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
     }
   </style>
 </head>
@@ -115,6 +106,26 @@
     const btnFoto = document.getElementById('btnFoto');
     const btnVideo = document.getElementById('btnVideo');
 
+  <!-- Botões -->
+  <div class="controls">
+    <button id="btnFoto" class="btn">📸</button>
+    <button id="btnVideo" class="btn">🔴</button>
+  </div>
+
+  <script>
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const personaje = document.querySelector('#personaje');
+    const escena = document.querySelector('a-scene');
+    const btnFoto = document.getElementById('btnFoto');
+    const btnVideo = document.getElementById('btnVideo');
+
+    /* ---------------------------
+       BRIDGE COMMUNICATION
+    --------------------------- */
+    function sendToApp(type, dataUrl) {
+      console.log(`Sending ${type} to app...`);
+      const payload = JSON.stringify({ type, data: dataUrl });
+      let sent = false;
     /* ---------------------------
        BRIDGE COMMUNICATION
     --------------------------- */
@@ -140,6 +151,8 @@
 
       return sent;
     }
+      return sent;
+    }
 
     /* ---------------------------
        Foto
@@ -161,7 +174,20 @@
         alert("Foto enviada para o App!");
       }
     };
+      if (!sent) {
+        const a = document.createElement('a');
+        a.download = `Droyz_AR_${Date.now()}.png`;
+        a.href = dataUrl;
+        a.click();
+      } else {
+        alert("Foto enviada para o App!");
+      }
+    };
 
+    /* ---------------------------
+       Vídeo
+    --------------------------- */
+    let recorder, chunks = [];
     /* ---------------------------
        Vídeo
     --------------------------- */
@@ -186,7 +212,32 @@
             reader.onloadend = () => {
               const base64data = reader.result;
               const sent = sendToApp('video', base64data);
+      if (!recorder || recorder.state === 'inactive') {
+        try {
+          const stream = escena.renderer.domElement.captureStream(30);
+          recorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp8' });
 
+          recorder.ondataavailable = e => chunks.push(e.data);
+          recorder.onstop = () => {
+            const blob = new Blob(chunks, { type: 'video/webm' });
+            const reader = new FileReader();
+            reader.readAsDataURL(blob);
+            reader.onloadend = () => {
+              const base64data = reader.result;
+              const sent = sendToApp('video', base64data);
+
+              if (!sent) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Droyz_AR_Video_${Date.now()}.webm`;
+                a.click();
+              } else {
+                alert("Vídeo enviado para o App!");
+              }
+              chunks = [];
+            };
+          };
               if (!sent) {
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -215,6 +266,20 @@
     };
   </script>
 
-</body>
+          recorder.start();
+          btnVideo.classList.add('recording');
+          btnVideo.textContent = '⏹️';
+        } catch (err) {
+          console.error("Recording error:", err);
+          alert("Erro ao iniciar gravação: " + err.message);
+        }
+      } else {
+        recorder.stop();
+        btnVideo.classList.remove('recording');
+        btnVideo.textContent = '🔴';
+      }
+    };
+  </script>
 
+</body>
 </html>
