@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>AR App</title>
+  <title></title>
 
   <!-- A-Frame + AR.js -->
   <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
@@ -12,10 +12,15 @@
   <script src="https://cdn.jsdelivr.net/npm/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
 
   <style>
+    html,
     body {
       margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
       overflow: hidden;
-      background: black;
+      background: transparent;
+      /* Changed from black to see video feed */
       font-family: sans-serif;
     }
 
@@ -134,7 +139,7 @@
   <!-- <div class="skin-selector" id="skinSelector"></div> -->
 
   <!-- Cena AR -->
-  <a-scene embedded vr-mode-ui="enabled: false" renderer="alpha: true; preserveDrawingBuffer: true;"
+  <a-scene vr-mode-ui="enabled: false" renderer="alpha: true; preserveDrawingBuffer: true;"
     arjs="sourceType: webcam; debugUIEnabled: false;" gesture-detector id="scene"><a-assets><a-asset-item id="skin1"
         src="https://raw.githubusercontent.com/KarenFrancellino/ar-models/main/DROYZ_ANIMAPP_SiCkJacken_v005.glb"></a-asset-item><a-asset-item
         id="skin2"
@@ -452,10 +457,6 @@
 
       // FORCE DEFAULT SKIN FOR TESTING
       personaje.setAttribute('gltf-model', '#skin1');
-
-
-      // Ajusta personagem inicial
-      personaje.setAttribute('gltf-model', `#${initialSkin}`);
 
       // NOTE: removed the old click listener that forced position calculation 
       // The gesture-handler now handles touch drag for position.
