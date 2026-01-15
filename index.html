@@ -148,7 +148,10 @@
             gesture-handler="minScale: 0.5; maxScale: 10"></a-entity></a-entity>
   </a-scene>
   < !-- Botões -->
-    <div class="controls"><button id="btnFoto" class="btn">📸</button><button id="btnVideo" class="btn">🔴</button>
+    <div class="controls">
+      <button id="btnSettings" class="btn">⚙️</button>
+      <button id="btnFoto" class="btn">📸</button>
+      <button id="btnVideo" class="btn">🔴</button>
     </div>
     <script>
 
@@ -386,50 +389,69 @@
 
       // Determine skins to show
       // If ?skins is present, it overrides the 'code' logic
-      const unlockedSkins = getUnlockedSkins(paramCode || "TESTE", paramSkins);
-      const initialSkin = unlockedSkins[0];
+      // Determine skins to show
+      // If ?skins is present, it overrides the 'code' logic
+      let unlockedSkins = getUnlockedSkins(paramCode || "TESTE", paramSkins);
+      let initialSkin = unlockedSkins[0];
 
-      // Criação dos botões do seletor (Carousel)
-      unlockedSkins.forEach((skinId, index) => {
-        const btn = document.createElement("div"); // Changed to div for styling flexibility
-        btn.classList.add("skin-btn");
-        if (index === 0) btn.classList.add("active");
+      // Function to render the selector
+      function renderSkinSelector(skins) {
+        skinSelector.innerHTML = ''; // Clear existing
 
-        // Create a placeholder icon or text
-        const label = document.createElement("span");
-        label.textContent = skinId.replace("skin", "Skin ").toUpperCase();
-        btn.appendChild(label);
+        skins.forEach((skinId, index) => {
+          const btn = document.createElement("div");
+          btn.classList.add("skin-btn");
+          if (index === 0) btn.classList.add("active");
 
-        btn.onclick = () => {
-          // Visual feedback
-          document.querySelectorAll(".skin-btn").forEach(b => b.classList.remove("active"));
-          btn.classList.add("active");
+          // Create a placeholder icon or text
+          const label = document.createElement("span");
+          label.textContent = skinId.replace("skin", "Skin ").toUpperCase();
+          btn.appendChild(label);
 
-          // Logic
-          personaje.removeAttribute('gltf-model');
+          btn.onclick = () => {
+            // Visual feedback
+            document.querySelectorAll(".skin-btn").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
 
-          setTimeout(() => {
-            personaje.setAttribute('gltf-model', `#$ {
-                  skinId
-                }
+            // Logic
+            personaje.removeAttribute('gltf-model');
 
-                `);
-            personaje.setAttribute('animation-mixer', '');
-          }
-
-            , 50);
-        }
-
-          ;
-        skinSelector.appendChild(btn);
-      });
-
-      // Ajusta personagem inicial
-      personaje.setAttribute('gltf-model', `#$ {
-        initialSkin
+            setTimeout(() => {
+              personaje.setAttribute('gltf-model', `#${skinId}`);
+              personaje.setAttribute('animation-mixer', '');
+            }, 50);
+          };
+          skinSelector.appendChild(btn);
+        });
       }
 
-      `);
+      // Initial Render
+      renderSkinSelector(unlockedSkins);
+
+      // Ajusta personagem inicial
+      personaje.setAttribute('gltf-model', `#${initialSkin}`);
+
+      /* ---------------------------
+         Settings / Config
+         --------------------------- */
+      const btnSettings = document.getElementById('btnSettings');
+      if (btnSettings) {
+        btnSettings.onclick = () => {
+          const newSkins = prompt("IDs das skins (separados por vírgula):", unlockedSkins.join(','));
+          if (newSkins !== null) {
+            const skinsArray = newSkins.split(',').map(s => s.trim()).filter(s => s);
+            if (skinsArray.length > 0) {
+              unlockedSkins = skinsArray;
+              renderSkinSelector(unlockedSkins);
+              // Select first one
+              personaje.setAttribute('gltf-model', `#${unlockedSkins[0]}`);
+            }
+          }
+        };
+      }
+
+      // Ajusta personagem inicial
+      personaje.setAttribute('gltf-model', `#${initialSkin}`);
 
       // NOTE: removed the old click listener that forced position calculation 
       // The gesture-handler now handles touch drag for position.
