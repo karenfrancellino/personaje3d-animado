@@ -80,8 +80,8 @@
 
 <body>
 
-  <!-- Cena AR -->
-  <!-- preserveDrawingBuffer: true is CRITICAL for photo capture -->
+  <!-- AR Scene -->
+  <!-- preserveDrawingBuffer=true is mandatory for WebGL capture -->
   <a-scene embedded renderer="logarithmicDepthBuffer: true; preserveDrawingBuffer: true;"
     arjs="sourceType: webcam; debugUIEnabled: false;" id="scene">
 
@@ -90,18 +90,15 @@
         src="https://raw.githubusercontent.com/karenfrancellino/ar-models/main/DROYZ_ANIMAPP_SiCkJacken_v005.glb"></a-asset-item>
     </a-assets>
 
-    <!-- Camera with Raycaster for Tap Interaction -->
-    <a-entity camera position="0 0 0" raycaster="objects: .clickable" cursor="rayOrigin: mouse"
-      emitevents="true"></a-entity>
+    <!-- Camera (No Cursor needed, we use Raycaster in JS) -->
+    <a-entity camera position="0 0 0"></a-entity>
 
     <!-- Lights -->
     <a-entity light="type: ambient; intensity: 1.3"></a-entity>
     <a-entity light="type: directional; position: 1 2 1"></a-entity>
 
-    <!-- Object: Character -->
-    <!-- Position Z=-3 fixed (3 meters in front) -->
-    <!-- Class 'clickable' for raycaster -->
-    <a-entity id="personaje" class="clickable" gltf-model="#skin1" position="0 -0.8 -3" scale="2 2 2" animation-mixer>
+    <!-- Character -->
+    <a-entity id="personaje" gltf-model="#skin1" position="0 -0.8 -3" scale="2 2 2" animation-mixer>
     </a-entity>
 
   </a-scene>
@@ -119,78 +116,105 @@
     const btnFoto = document.getElementById('btnFoto');
     const btnVideo = document.getElementById('btnVideo');
 
-    // --- TAP TO MOVE LOGIC ---
-    // User wants to move character in X/Y axes, keeping Z fixed at -3.
-    // We listen for clicks on the SCENE.
-
-    document.querySelector('a-scene').addEventListener('click', function (evt) {
-      // Prevent moving if we clicked a button
+    /* ----------------------------------------------------
+       1. TOUCH MOVEMENT LOGIC (Ray-Plane Intersection)
+       Moves character on X/Y plane at fixed Z=-3 depth.
+    ---------------------------------------------------- */
+    function onTouchMove(evt) {
       if (evt.target.tagName === 'BUTTON' || evt.target.closest('button')) return;
 
       const camera = escena.camera;
       if (!camera) return;
 
-      // Mouse/Touch coordinates normalized (-1 to +1)
-      const mouse = new THREE.Vector2();
       const rect = escena.renderer.domElement.getBoundingClientRect();
 
-      // Handle both MouseEvent and CustomEvent details if coming from cursor
-      let clientX = evt.clientX;
-      let clientY = evt.clientY;
-
-      if (evt.detail && (evt.detail.x !== undefined)) {
-        // Some A-Frame events pass x/y directly? Usually it's intersections.
-        // Let's rely on standard clientX/Y if native click, or detail if cursor.
-        // Actually, 'click' event from 'cursor="rayOrigin: mouse"' on scene background might be tricky.
-        // A simpler approach: Raycast using the event coordinates.
+      let clientX, clientY;
+      if (evt.touches && evt.touches.length > 0) {
+        clientX = evt.touches[0].clientX;
+        clientY = evt.touches[0].clientY;
+      } else {
+        clientX = evt.clientX;
+        clientY = evt.clientY;
       }
 
-      // If native event is missing coordinates (e.g. some headsets), fall back
-      if (clientX === undefined || clientY === undefined) {
-        if (evt.detail && evt.detail.cursorEl) {
-          // It's a cursor event, but we need screen coords.
-          // Let's assume touch/mouse event bubbles up.
-          return;
-        }
-      }
+      if (clientX === undefined || clientY === undefined) return;
 
+      // Normalize Mouse Position (-1 to +1)
+      const mouse = new THREE.Vector2();
       mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
-      mouse.y = - ((clientY - rect.top) / rect.height) * 2 + 1;
+      mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
 
-      // Raycast from camera
+      // Raycast from Camera
       const raycaster = new THREE.Raycaster();
       raycaster.setFromCamera(mouse, camera);
 
-      // We want to find the point where Ray intersects the plane Z = -3 (relative to camera)
-      // Since camera is at 0,0,0, we check direction.
+      // Intersect with Plane Z = -3 (relative to camera)
+      // Camera is usually at (0,0,0). So we want point P where P.z = -3.
+      // Ray: P = Origin + dist * Direction
+      // -3 = Origin.z + dist * Direction.z
+      // dist = (-3 - Origin.z) / Direction.z
+
       const dir = raycaster.ray.direction;
-      const targetZ = -3;
 
-      // If ray is pointing parallel to plane or backwards, ignore
-      if (Math.abs(dir.z) < 0.01 || dir.z > 0) return;
+      // If ray points behind or parallel, ignore
+      if (dir.z >= -0.01) return;
 
-      const distance = targetZ / dir.z;
-      const newPos = raycaster.ray.origin.clone().add(dir.clone().multiplyScalar(distance));
+      const dist = -3 / dir.z;
+      const newPos = raycaster.ray.origin.clone().add(dir.clone().multiplyScalar(dist));
 
-      // Update Position: X and Y from calculation, Z fixed at -3, Y fixed at -0.8?
-      // User said "move in X and Y".
-      // Usually, moving Y upwards makes it look like it's flying if we don't have a floor.
-      // If user wants to "place it on the ground", usually we only change X and Z (depth).
-      // BUT user explicitly said "X and Y... not Z". Z means depth/distance.
-      // So if I click top-right corner, character goes top-right but stays 3m away.
-
+      // Update Position (Keep Z fixed)
       personaje.object3D.position.set(newPos.x, newPos.y, -3);
-    });
+    }
+
+    // Attach listeners to Scene Canvas
+    const canvasEl = escena.renderer.domElement;
+    // We listen to 'click' for taps and 'touchmove' for dragging
+    canvasEl.addEventListener('click', onTouchMove);
+    canvasEl.addEventListener('touchstart', onTouchMove);
+    canvasEl.addEventListener('touchmove', onTouchMove);
 
 
-    /* ---------------------------
-       BRIDGE COMMUNICATION
-    --------------------------- */
+    /* ----------------------------------------------------
+       2. PHOTO COMPOSITING (Fix Black Background)
+       Draws Video Feed + WebGL Scene onto a new canvas.
+    ---------------------------------------------------- */
+    function takeCompositePhoto() {
+      const video = document.querySelector('video'); // AR.js camera feed
+      const webglCanvas = escena.renderer.domElement;
+
+      if (!webglCanvas) return null;
+
+      const width = webglCanvas.width;
+      const height = webglCanvas.height;
+
+      const mergeCanvas = document.createElement('canvas');
+      mergeCanvas.width = width;
+      mergeCanvas.height = height;
+      const ctx = mergeCanvas.getContext('2d');
+
+      // A. Draw Camera Feed
+      if (video && video.readyState >= 2) {
+        // AR.js videos are usually full-screen object-fit:cover, but
+        // drawing them raw might require aspect ratio calc. 
+        // For simplicity V1, we draw stretched to fill.
+        ctx.drawImage(video, 0, 0, width, height);
+      } else {
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, width, height);
+      }
+
+      // B. Draw 3D Character
+      // Force render to ensure character is visible in buffer
+      escena.renderer.render(escena.object3D, escena.camera);
+      ctx.drawImage(webglCanvas, 0, 0, width, height);
+
+      return mergeCanvas.toDataURL('image/png');
+    }
+
     function sendToApp(type, dataUrl) {
       console.log(`Sending ${type} to app...`);
       const payload = JSON.stringify({ type, data: dataUrl });
       let sent = false;
-
       try {
         if (window.FlutterFlow && window.FlutterFlow.postMessage) {
           window.FlutterFlow.postMessage(payload);
@@ -202,23 +226,18 @@
           window.Params.postMessage(payload);
           sent = true;
         }
-      } catch (e) {
-        console.error("Error sending to bridge:", e);
-      }
+      } catch (e) { console.error(e); }
       return sent;
     }
 
-    /* ---------------------------
-       FOTO
-    --------------------------- */
+    /* ----------------------------------------------------
+       3. BUTTON HANDLERS
+    ---------------------------------------------------- */
     btnFoto.onclick = (e) => {
-      e.stopPropagation(); // Prevent scene click
+      e.stopPropagation();
+      e.preventDefault();
 
-      // Force render for fresh frame
-      escena.renderer.render(escena.object3D, escena.camera);
-
-      const canvas = escena.renderer.domElement;
-      const dataUrl = canvas.toDataURL('image/png');
+      const dataUrl = takeCompositePhoto();
       const sent = sendToApp('photo', dataUrl);
 
       if (!sent) {
@@ -227,61 +246,88 @@
         a.href = dataUrl;
         a.click();
       } else {
-        alert("Foto enviada para o App!");
+        alert("Foto enviada!");
       }
     };
 
-    /* ---------------------------
-       VIDEO
-    --------------------------- */
-    let recorder, chunks = [];
+    let isRecording = false;
+    let mediaRecorder;
+    let chunks = [];
+    let frameId;
 
     btnVideo.onclick = (e) => {
-      e.stopPropagation(); // Prevent scene click
+      e.stopPropagation();
+      e.preventDefault();
 
       if (isIOS) {
-        alert('A gravação de vídeo não é nativamente suportada neste navegador no iOS.');
+        alert("Gravação de vídeo não permitida no iOS (Web).");
         return;
       }
 
-      if (!recorder || recorder.state === 'inactive') {
+      if (!isRecording) {
+        // --- START RECORDING ---
+        // Complex logic to record blended canvas
         try {
-          const stream = escena.renderer.domElement.captureStream(30);
-          recorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp8' });
+          const webglCanvas = escena.renderer.domElement;
+          const video = document.querySelector('video');
 
-          recorder.ondataavailable = e => chunks.push(e.data);
-          recorder.onstop = () => {
+          // Recording Canvas
+          const recCanvas = document.createElement('canvas');
+          recCanvas.width = webglCanvas.width;
+          recCanvas.height = webglCanvas.height;
+          const ctx = recCanvas.getContext('2d');
+
+          // Anim Loop to update recording canvas
+          function drawLoop() {
+            if (!isRecording) return;
+            if (video && video.readyState >= 2) ctx.drawImage(video, 0, 0, recCanvas.width, recCanvas.height);
+            ctx.drawImage(webglCanvas, 0, 0, recCanvas.width, recCanvas.height);
+            frameId = requestAnimationFrame(drawLoop);
+          }
+
+          isRecording = true;
+          drawLoop();
+
+          const stream = recCanvas.captureStream(30);
+          mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp8' });
+          chunks = [];
+
+          mediaRecorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+          mediaRecorder.onstop = () => {
             const blob = new Blob(chunks, { type: 'video/webm' });
             const reader = new FileReader();
             reader.readAsDataURL(blob);
             reader.onloadend = () => {
-              const base64data = reader.result;
-              const sent = sendToApp('video', base64data);
-
-              if (!sent) {
+              sendToApp('video', reader.result);
+              // Alert handled or download fallback
+              if (!window.FlutterFlow && !window.flutter_inappwebview) {
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `Droyz_AR_Video_${Date.now()}.webm`;
+                a.download = `video_${Date.now()}.webm`;
                 a.click();
               } else {
-                alert("Vídeo enviado para o App!");
+                alert("Vídeo enviado!");
               }
-              chunks = [];
-            };
+            }
           };
 
-          recorder.start();
-          btnVideo.classList.add('recording');
+          mediaRecorder.start();
           btnVideo.textContent = '⏹️';
+          btnVideo.classList.add('recording');
+
         } catch (err) {
-          console.error("Recording error:", err);
-          alert("Erro ao iniciar gravação: " + err.message);
+          console.error(err);
+          alert("Erro ao gravar: " + err.message);
+          isRecording = false;
         }
       } else {
-        recorder.stop();
-        btnVideo.classList.remove('recording');
+        // --- STOP RECORDING ---
+        isRecording = false;
+        cancelAnimationFrame(frameId);
+        if (mediaRecorder) mediaRecorder.stop();
         btnVideo.textContent = '🔴';
+        btnVideo.classList.remove('recording');
       }
     };
   </script>
