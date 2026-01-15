@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Droyz AR Teste Completo</title>
+  <title>AR App</title>
 
   <!-- A-Frame + AR.js -->
   <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
@@ -130,8 +130,8 @@
 
 <body>
 
-  <!-- Seletor de skins -->
-  <div class="skin-selector" id="skinSelector"></div>
+  <!-- Seletor de skins (Desativado para testes) -->
+  <!-- <div class="skin-selector" id="skinSelector"></div> -->
 
   <!-- Cena AR -->
   <a-scene embedded vr-mode-ui="enabled: false" renderer="alpha: true; preserveDrawingBuffer: true;"
@@ -149,7 +149,6 @@
   </a-scene>
   < !-- Botões -->
     <div class="controls">
-      <button id="btnSettings" class="btn">⚙️</button>
       <button id="btnFoto" class="btn">📸</button>
       <button id="btnVideo" class="btn">🔴</button>
     </div>
@@ -387,8 +386,7 @@
         }
       }
 
-      // Determine skins to show
-      // If ?skins is present, it overrides the 'code' logic
+      /*
       // Determine skins to show
       // If ?skins is present, it overrides the 'code' logic
       let unlockedSkins = getUnlockedSkins(paramCode || "TESTE", paramSkins);
@@ -396,6 +394,7 @@
 
       // Function to render the selector
       function renderSkinSelector(skins) {
+        if (!skinSelector) return;
         skinSelector.innerHTML = ''; // Clear existing
 
         skins.forEach((skinId, index) => {
@@ -434,21 +433,26 @@
       /* ---------------------------
          Settings / Config
          --------------------------- */
-      const btnSettings = document.getElementById('btnSettings');
-      if (btnSettings) {
-        btnSettings.onclick = () => {
-          const newSkins = prompt("IDs das skins (separados por vírgula):", unlockedSkins.join(','));
-          if (newSkins !== null) {
-            const skinsArray = newSkins.split(',').map(s => s.trim()).filter(s => s);
-            if (skinsArray.length > 0) {
-              unlockedSkins = skinsArray;
-              renderSkinSelector(unlockedSkins);
-              // Select first one
-              personaje.setAttribute('gltf-model', `#${unlockedSkins[0]}`);
-            }
-          }
-        };
-      }
+      // const btnSettings = document.getElementById('btnSettings');
+      // if (btnSettings) {
+      //   btnSettings.onclick = () => {
+      //     const newSkins = prompt("IDs das skins (separados por vírgula):", unlockedSkins.join(','));
+      //     if (newSkins !== null) {
+      //       const skinsArray = newSkins.split(',').map(s => s.trim()).filter(s => s);
+      //       if (skinsArray.length > 0) {
+      //         unlockedSkins = skinsArray;
+      //         renderSkinSelector(unlockedSkins);
+      //         // Select first one
+      //         personaje.setAttribute('gltf-model', `#${unlockedSkins[0]}`);
+      //       }
+      //     }
+      //   };
+      // }
+      */
+
+      // FORCE DEFAULT SKIN FOR TESTING
+      personaje.setAttribute('gltf-model', '#skin1');
+
 
       // Ajusta personagem inicial
       personaje.setAttribute('gltf-model', `#${initialSkin}`);
