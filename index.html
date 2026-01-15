@@ -357,8 +357,13 @@
 
 
       /* ---------------------------
-     APP LOGIC
-  --------------------------- */
+         APP LOGIC - URL PARAMS & CONFIG
+         --------------------------- */
+      // Helper to parse URL params
+      const urlParams = new URLSearchParams(window.location.search);
+      const paramCode = urlParams.get('code'); // e.g. ?code=USER123
+      const paramSkins = urlParams.get('skins'); // e.g. ?skins=skin1,skin2
+
       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
       const personaje = document.querySelector('#personaje');
       const escena = document.querySelector('a-scene');
@@ -366,17 +371,22 @@
       const btnFoto = document.getElementById('btnFoto');
       const btnVideo = document.getElementById('btnVideo');
 
-      // Para teste: simula QR/código e desbloqueia skins
-      const simulatedUserCode = "TESTE";
+      // Logic for unlocked skins
+      function getUnlockedSkins(code, skinsParam) {
+        // If skins are explicitly passed only usage those
+        if (skinsParam) {
+          return skinsParam.split(',').map(s => s.trim());
+        }
 
-      function getUnlockedSkins(code) {
         switch (code) {
-          case "TESTE": return ["skin1", "skin2", "skin3"]; // todas desbloqueadas
+          case "TESTE": return ["skin1", "skin2", "skin3"];
           default: return ["skin1"];
         }
       }
 
-      const unlockedSkins = getUnlockedSkins(simulatedUserCode);
+      // Determine skins to show
+      // If ?skins is present, it overrides the 'code' logic
+      const unlockedSkins = getUnlockedSkins(paramCode || "TESTE", paramSkins);
       const initialSkin = unlockedSkins[0];
 
       // Criação dos botões do seletor (Carousel)
@@ -427,26 +437,60 @@
       /* ---------------------------
      Foto
   --------------------------- */
-      btnFoto.onclick = () => {
-        const canvas = escena.renderer.domElement;
-        const a = document.createElement('a');
+      /* ---------------------------
+      BRIDGE COMMUNICATION
+      --------------------------- */
+      function sendToApp(type, dataUrl) {
+        console.log(`Sending ${type} to app...`);
+        const payload = JSON.stringify({ type: type, data: dataUrl });
 
-        a.download = `Droyz_AR_$ {
-        Date.now()
+        let sent = false;
+
+        // 1. Specific FlutterFlow/WebView tokens
+        // Verifica se existe o objeto FlutterFlow ou canais comuns
+        try {
+          if (window.FlutterFlow && window.FlutterFlow.postMessage) {
+            window.FlutterFlow.postMessage(payload);
+            sent = true;
+          } else if (window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
+            window.flutter_inappwebview.callHandler('onCapture', payload);
+            sent = true;
+          } else if (window.Params && window.Params.postMessage) { // Generic
+            window.Params.postMessage(payload);
+            sent = true;
+          }
+        } catch (e) {
+          console.error("Error sending to bridge:", e);
+        }
+
+        return sent;
       }
-
-      .png`;
-        a.href = canvas.toDataURL('image/png');
-        a.click();
-      }
-
-        ;
 
       /* ---------------------------
-     Vídeo
-  --------------------------- */
-      let recorder,
-        chunks = [];
+         Foto
+         --------------------------- */
+      btnFoto.onclick = () => {
+        const canvas = escena.renderer.domElement;
+        const dataUrl = canvas.toDataURL('image/png');
+
+        // Tenta enviar para o App
+        const sent = sendToApp('photo', dataUrl);
+
+        // Se não foi enviado (estamos no browser normal), faz download
+        if (!sent) {
+          const a = document.createElement('a');
+          a.download = `Droyz_AR_${Date.now()}.png`;
+          a.href = dataUrl;
+          a.click();
+        } else {
+          alert("Foto enviada para o App!");
+        }
+      };
+
+      /* ---------------------------
+         Vídeo
+         --------------------------- */
+      let recorder, chunks = [];
 
       btnVideo.onclick = () => {
         if (isIOS) {
@@ -457,51 +501,49 @@
         if (!recorder || recorder.state === 'inactive') {
           try {
             const stream = escena.renderer.domElement.captureStream(30);
-
-            recorder = new MediaRecorder(stream, {
-              mimeType: 'video/webm; codecs=vp8'
-            });
-
+            recorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp8' });
             recorder.ondataavailable = e => chunks.push(e.data);
-
             recorder.onstop = () => {
-              const blob = new Blob(chunks, {
-                type: 'video/webm'
-              });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
+              const blob = new Blob(chunks, { type: 'video/webm' });
 
-              a.download = `Droyz_AR_Video_$ {
-          Date.now()
-        }
+              // Converte Blob para Base64 para envio via ponte
+              const reader = new FileReader();
+              reader.readAsDataURL(blob);
+              reader.onloadend = () => {
+                const base64data = reader.result;
 
-        .webm`;
-              a.click();
-              chunks = [];
-            }
+                // Tenta enviar
+                const sent = sendToApp('video', base64data);
 
-              ;
+                // Fallback download
+                if (!sent) {
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `Droyz_AR_Video_${Date.now()}.webm`;
+                  a.click();
+                } else {
+                  alert("Vídeo enviado para o App!");
+                }
+                chunks = [];
+              };
+            };
 
             recorder.start();
             btnVideo.classList.add('recording');
             btnVideo.textContent = '⏹️';
-          }
-
-          catch (err) {
+          } catch (err) {
             console.error("Recording error:", err);
             alert("Erro ao iniciar gravação: " + err.message);
           }
-        }
-
-        else {
+        } else {
           recorder.stop();
           btnVideo.classList.remove('recording');
           btnVideo.textContent = '🔴';
         }
-      }
+      };
 
-        ;
+      ;
     </script>
 </body>
 
