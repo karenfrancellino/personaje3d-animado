@@ -136,8 +136,7 @@
          VISIBLE FALSE initially if we want to force placement? 
          User says "detect surface where to place it".
     -->
-    <a-entity id="personaje" gltf-model="#skin1" position="0 -0.8 -3" scale="0.15 0.15 0.15" animation-mixer
-      visible="true">
+    <a-entity id="personaje" gltf-model="#skin1" position="0 -0.8 -3" scale="1 1 1" animation-mixer visible="true">
     </a-entity>
 
     <!-- Reticle for Hit Test (Native WebXR usually handles this internally or we add one) -->
@@ -177,7 +176,7 @@
 
     // --- Scale Setting (15cm) ---
     // Assuming model is roughly 1 unit tall. 
-    personaje.setAttribute('scale', '0.15 0.15 0.15');
+    personaje.setAttribute('scale', '1 1 1');
 
     // --- Interaction Logic ---
     function onTouchMove(evt) {
@@ -244,8 +243,8 @@
 
       const newPos = raycaster.ray.origin.clone().add(dir.clone().multiplyScalar(dist));
 
-      // Force Y to floorY to keep it grounded.
-      personaje.object3D.position.set(newPos.x, floorY, newPos.z);
+      // Update position (allow Y axis movement)
+      personaje.object3D.position.copy(newPos);
     }
 
     const canvasEl = escena.renderer.domElement;
