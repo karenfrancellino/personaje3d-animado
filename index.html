@@ -221,15 +221,31 @@
       // A full "Surface Detector" usually implies ARKit/Core which AR.js doesn't do easily.
       // I will keep the Z logic but apply the requested Scale. 
 
-      // Calculation for intersection with plane Z = -3
-      // Ray equation: P = Origin + dist * Direction
-      // We want P.z = -3
-      // Origin.z + dist * Direction.z = -3
-      // dist = (-3 - Origin.z) / Direction.z
-      const dist = (-3 - raycaster.ray.origin.z) / dir.z;
+      // --- IMPROVED PLACEMENT LOGIC ---
+      // 1. Try to intersect with the "floor" plane at Y = -0.8 (user's preferred height)
+      // Ray: P = Origin + dist * Direction
+      // Target Y = -0.8
+      // Origin.y + dist * Direction.y = -0.8  =>  dist = (-0.8 - Origin.y) / Direction.y
+
+      const floorY = -0.8;
+      let dist = 0;
+
+      // Check if we are looking somewhat downwards (Direction.y < -0.1)
+      if (dir.y < -0.1) {
+        dist = (floorY - raycaster.ray.origin.y) / dir.y;
+        if (dist < 0 || dist > 20) {
+          // If intersection is behind or too far, fallback to fixed distance
+          dist = 3;
+        }
+      } else {
+        // Looking at horizon or sky -> Place at fixed distance in front
+        dist = 3;
+      }
 
       const newPos = raycaster.ray.origin.clone().add(dir.clone().multiplyScalar(dist));
-      personaje.object3D.position.set(newPos.x, newPos.y, -3);
+
+      // Force Y to floorY to keep it grounded.
+      personaje.object3D.position.set(newPos.x, floorY, newPos.z);
     }
 
     const canvasEl = escena.renderer.domElement;
