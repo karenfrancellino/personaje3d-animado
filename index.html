@@ -3,78 +3,101 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Droyz AR Teste</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Droyz AR Character</title>
   <meta name="theme-color" content="#000000">
 
-  <!-- A-Frame -->
-  <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
-  <!-- AR.js removed in favor of WebXR for hit-test OR used as fallback? 
-       For "Setup Surface Detection", standard A-Frame WebXR is best.
-       But user code has AR.js. 
-       I will stick to User's code base but add WebXR Hit Test logic. 
-       Note: AR.js doesn't do hit-test. I will use A-Frame's native 'ar-hit-test'. 
-  -->
-  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
+  <!-- A-Frame 1.6.0 for better WebXR support -->
+  <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+  <!-- A-Frame Extras for Animation -->
+  <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
 
   <style>
-    html,
     body {
       margin: 0;
       padding: 0;
-      width: 100%;
-      height: 100%;
       overflow: hidden;
-      background: transparent;
-      font-family: sans-serif;
+      font-family: 'Roboto', sans-serif;
+      background-color: #000;
     }
 
-    .controls {
+    /* UI Overlay */
+    #overlay {
       position: fixed;
-      bottom: 30px;
+      top: 0;
       left: 0;
       width: 100%;
+      height: 100%;
+      z-index: 1000;
+      pointer-events: none;
+      /* Let clicks pass to scene logic */
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    /* Access Denied Overlay */
+    #login-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      color: white;
+      z-index: 2000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
+    /* Controls (Photo/Video) */
+    .controls {
+      pointer-events: auto;
       display: flex;
       justify-content: center;
-      gap: 40px;
-      z-index: 9999;
+      gap: 30px;
+      padding-bottom: 30px;
     }
 
     .btn {
-      pointer-events: auto;
-      width: 70px;
-      height: 70px;
+      width: 65px;
+      height: 65px;
       border-radius: 50%;
       border: 3px solid white;
-      background: rgba(0, 0, 0, 0.6);
+      background: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(5px);
       color: white;
-      font-size: 28px;
+      font-size: 24px;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: transform 0.1s;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+      transition: all 0.2s;
     }
 
     .btn:active {
       transform: scale(0.9);
+      background: rgba(255, 255, 255, 0.4);
     }
 
     .recording {
-      background: red !important;
+      background: rgba(255, 0, 0, 0.8) !important;
       border-color: red !important;
       animation: pulse 1s infinite;
     }
 
     @keyframes pulse {
       0% {
-        box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7);
+        box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.4);
       }
 
       70% {
-        box-shadow: 0 0 0 10px rgba(255, 0, 0, 0);
+        box-shadow: 0 0 0 15px rgba(255, 0, 0, 0);
       }
 
       100% {
@@ -82,20 +105,106 @@
       }
     }
 
-    /* RETICLE STYLE (Optional CSS overlay or A-Frame entity) */
+    /* Skin Carousel */
+    .skin-carousel {
+      pointer-events: auto;
+      display: flex;
+      overflow-x: auto;
+      gap: 15px;
+      padding: 15px;
+      background: rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(10px);
+      margin-top: 10px;
+      scrollbar-width: none;
+      /* Firefox */
+    }
+
+    .skin-carousel::-webkit-scrollbar {
+      display: none;
+    }
+
+    .skin-item {
+      min-width: 60px;
+      height: 60px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 2px solid transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      color: white;
+      cursor: pointer;
+    }
+
+    .skin-item.selected {
+      border-color: #00e5ff;
+      background: rgba(0, 229, 255, 0.2);
+    }
+
+    /* Hide Enter AR Button Default Style */
+    .a-enter-vr-button {
+      bottom: 20px !important;
+    }
   </style>
 
   <script>
-    // Component to handle AR Hit Test and scaling
-    AFRAME.registerComponent('ar-hit-test-listener', {
+    // --- 1. WebXR Hit Test & Reticle Component ---
+    AFRAME.registerComponent('ar-hit-test-cursor', {
       init: function () {
-        this.el.sceneEl.addEventListener('ar-hit-test-start', () => {
-          // Show reticle or feedback
-        });
+        this.reticle = document.querySelector('#reticle');
+        this.character = document.querySelector('#personaje');
+        this.isVisible = false;
+
         this.el.sceneEl.addEventListener('enter-vr', () => {
           if (this.el.sceneEl.is('ar-mode')) {
-            // In WebXR AR mode
-            // We can check sessions
+            this.reticle.setAttribute('visible', 'true');
+            this.isVisible = true;
+          }
+        });
+
+        this.el.sceneEl.addEventListener('exit-vr', () => {
+          this.reticle.setAttribute('visible', 'false');
+          this.isVisible = false;
+        });
+
+        this.el.addEventListener('ar-hit-test-select', (evt) => {
+          // Place character logic
+          const reticlePos = this.reticle.getAttribute('position');
+          const reticleRot = this.reticle.getAttribute('rotation');
+
+          this.character.setAttribute('position', reticlePos);
+          // Only take Y rotation to face user? Or match reticle?
+          // Usually we want character upright. Reticle follows surface normal.
+          // Let's just place it. User can rotate manually later if needed.
+          this.character.setAttribute('visible', 'true');
+
+          // Optional: Face camera
+          const camPos = this.el.sceneEl.camera.el.object3D.position;
+          this.character.object3D.lookAt(camPos.x, this.character.object3D.position.y, camPos.z);
+        });
+      }
+    });
+
+    // --- 2. Fallback "Drag to Place" Component (for iOS/Non-WebXR) ---
+    AFRAME.registerComponent('drag-place-fallback', {
+      init: function () {
+        this.el.sceneEl.canvas.addEventListener('click', (evt) => {
+          if (!this.el.sceneEl.is('ar-mode')) {
+            // Non-WebXR Mode (or iOS Safari without WebXR)
+            // Simple casting
+            const camera = this.el.sceneEl.camera;
+            if (!camera) return;
+
+            // Just place 2 meters in front of camera
+            const dir = new THREE.Vector3(0, 0, -2);
+            dir.applyQuaternion(camera.quaternion);
+            const pos = camera.position.clone().add(dir);
+
+            // Keep floor level relative? 
+            const character = document.querySelector('#personaje');
+            character.setAttribute('position', `${pos.x} ${pos.y - 0.5} ${pos.z}`);
+            character.setAttribute('visible', 'true');
           }
         });
       }
@@ -105,264 +214,231 @@
 
 <body>
 
-  <!-- AR Scene 
-       Modified for Surface Detection:
-       1. webxr="optionalFeatures: hit-test;" enables native AR hit test.
-       2. ar-hit-test="target: #personaje;" tells A-Frame to place #personaje on hit.
-       3. We maintain AR.js fallback if WebXR not supported? 
-          Actually, replacing 'embedded arjs' with 'webxr' often conflicts. 
-          To support Boss's request "detect surface", we usually need WebXR.
-          I'll Add 'webxr' and try to be compatible.
+  <!-- Security Overlay -->
+  <div id="login-screen" style="display: none;"> <!-- Default hidden for testing, will enable via JS -->
+    <h2>🔒 Access Locked</h2>
+    <p>Please scan the QR code from the app to unlock this character.</p>
+  </div>
+
+  <!-- Main Scene 
+       webxr="optionalFeatures: hit-test, dom-overlay; overlayElement: #overlay;"
+       This enables native Surface Detection on Android Chrome.
   -->
-  <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;"
-    webxr="optionalFeatures: hit-test, dom-overlay; overlayElement: #overlay;"
-    renderer="logarithmicDepthBuffer: true; preserveDrawingBuffer: true;" id="scene">
+  <a-scene webxr="optionalFeatures: hit-test, dom-overlay; overlayElement: #overlay;"
+    ar-hit-test="target: #reticle; type: map;" ar-hit-test-cursor drag-place-fallback
+    renderer="colorManagement: true; sortObjects: true; highRefreshRate: true;" vr-mode-ui="enabled: true">
 
     <a-assets>
-      <a-asset-item id="skin1"
+      <!-- Default Model -->
+      <a-asset-item id="model-default"
         src="https://raw.githubusercontent.com/karenfrancellino/ar-models/main/DROYZ_ANIMAPP_SiCkJacken_v005.glb"></a-asset-item>
     </a-assets>
 
     <!-- Camera -->
-    <a-entity camera position="0 0 0"></a-entity>
+    <a-entity camera position="0 1.6 0"
+      look-controls="magicWindowTrackingEnabled: false; touchEnabled: false; mouseEnabled: false"></a-entity>
 
-    <!-- Lights -->
-    <a-entity light="type: ambient; intensity: 1.3"></a-entity>
-    <a-entity light="type: directional; position: 1 2 1"></a-entity>
+    <!-- Lighting -->
+    <a-light type="ambient" intensity="1"></a-light>
+    <a-light type="directional" position="1 2 1" intensity="1.5"></a-light>
 
-    <!-- Character 
-         Scale: 15cm = 0.15m (assuming model is ~1m tall)
-         Position: Initially hidden or at 0,0,-1 (floating) until placed.
-         VISIBLE FALSE initially if we want to force placement? 
-         User says "detect surface where to place it".
-    -->
-    <a-entity id="personaje" gltf-model="#skin1" position="0 -0.8 -3" scale="1 1 1" animation-mixer visible="true">
+    <!-- Reticle (Visualizes Surface) -->
+    <!-- Simple Ring Geometry -->
+    <a-entity id="reticle" visible="false">
+      <a-ring color="white" radius-inner="0.05" radius-outer="0.06" rotation="-90 0 0" opacity="0.8"></a-ring>
+      <a-circle color="white" radius="0.01" rotation="-90 0 0" opacity="0.8"></a-circle>
     </a-entity>
 
-    <!-- Reticle for Hit Test (Native WebXR usually handles this internally or we add one) -->
-    <a-entity id="reticle" ar-hit-test-reticle visible="false"></a-entity>
+    <!-- Character 
+         Scale: 15cm -> 0.15 
+         Hidden until placed 
+    -->
+    <a-entity id="personaje" gltf-model="#model-default" scale="0.15 0.15 0.15" visible="false"
+      animation-mixer="loop: repeat;">
+    </a-entity>
 
   </a-scene>
 
-  <!-- Overlay for WebXR DOM interaction -->
+  <!-- UI Overlay -->
   <div id="overlay">
+
+    <!-- Skin Selector (Example Items) -->
+    <div class="skin-carousel" id="skinCarousel">
+      <!-- Populated by JS -->
+    </div>
+
+    <!-- Capture Controls -->
     <div class="controls">
-      <button id="btnFoto" class="btn">📸</button>
-      <button id="btnVideo" class="btn">🔴</button>
+      <div id="btnFoto" class="btn">📸</div>
+      <div id="btnVideo" class="btn">🔴</div>
     </div>
   </div>
 
   <script>
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    const personaje = document.querySelector('#personaje');
-    const escena = document.querySelector('a-scene');
+    /* ----------------------------------------------------------------
+       CONFIGURATION & DATA
+    ---------------------------------------------------------------- */
+    // Example Skins Configuration
+    const SKINS = [
+      { id: 'sickjacken', name: 'Sick Jacken', url: 'https://raw.githubusercontent.com/karenfrancellino/ar-models/main/DROYZ_ANIMAPP_SiCkJacken_v005.glb' },
+      { id: 'skin2', name: 'Skin 2', url: 'https://raw.githubusercontent.com/karenfrancellino/ar-models/main/DROYZ_ANIMAPP_SiCkJacken_v005.glb' }, // Duplicate for demo
+      { id: 'skin3', name: 'Skin 3', url: 'https://raw.githubusercontent.com/karenfrancellino/ar-models/main/DROYZ_ANIMAPP_SiCkJacken_v005.glb' },
+    ];
+
+    /* ----------------------------------------------------------------
+       1. SECURITY / INTEGRATION
+    ---------------------------------------------------------------- */
+    function checkSecurity() {
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get('token');
+      const skinId = params.get('skin');
+
+      // If required to be locked:
+      // if (!token) {
+      //   document.getElementById('login-screen').style.display = 'flex';
+      //   document.getElementById('overlay').style.display = 'none';
+      //   return false;
+      // }
+
+      // Select Skin
+      if (skinId) {
+        selectSkin(skinId);
+      } else {
+        selectSkin(SKINS[0].id); // Default
+      }
+
+      return true;
+    }
+
+    /* ----------------------------------------------------------------
+       2. UI LOGIC (Skins)
+    ---------------------------------------------------------------- */
+    function renderSkins() {
+      const carousel = document.getElementById('skinCarousel');
+      carousel.innerHTML = '';
+      SKINS.forEach(skin => {
+        const el = document.createElement('div');
+        el.className = 'skin-item';
+        el.innerText = skin.name;
+        el.onclick = (e) => {
+          e.stopPropagation(); // Prevent placement click
+          selectSkin(skin.id);
+        };
+        carousel.appendChild(el);
+      });
+    }
+
+    function selectSkin(id) {
+      const skin = SKINS.find(s => s.id === id) || SKINS[0];
+      const personaje = document.querySelector('#personaje');
+
+      // Update Model
+      personaje.setAttribute('gltf-model', skin.url);
+
+      // Update UI Highlighting
+      document.querySelectorAll('.skin-item').forEach(el => {
+        el.classList.remove('selected');
+        if (el.innerText === skin.name) el.classList.add('selected');
+      });
+    }
+
+    /* ----------------------------------------------------------------
+       3. CAPTURE LOGIC (Photo & Video)
+    ---------------------------------------------------------------- */
+    const scene = document.querySelector('a-scene');
     const btnFoto = document.getElementById('btnFoto');
     const btnVideo = document.getElementById('btnVideo');
 
-    /* ----------------------------------------------------
-       1. SURFACE DETECTION & PLACEMENT LOGIC
-       
-       Approach A: WebXR Hit Test (Native AR) - Best for "Detect Surface"
-       Approach B: Pseudo-Raycast (Current) - Good update to logic
-       
-       We'll implement a Hybrid:
-       - If WebXR available (Android Chrome), utilize hit-test result.
-       - Use 'ar-hit-test' component from A-Frame.
-       
-       However, A-Frame AR.js and WebXR are distinct modes.
-       The user provided AR.js snippet. I will ADD Hit-Test logic 
-       but keep the fallback Ray-Plane for non-WebXR.
-    ---------------------------------------------------- */
+    // Helper: Send to FlutterFlow / Wrapper
+    function sendToApp(type, data) {
+      console.log(`Sending ${type}...`);
+      const payload = JSON.stringify({ type: type, data: data });
 
-    // --- Scale Setting (15cm) ---
-    // Assuming model is roughly 1 unit tall. 
-    personaje.setAttribute('scale', '1 1 1');
-
-    // --- Interaction Logic ---
-    function onTouchMove(evt) {
-      if (evt.target.tagName === 'BUTTON' || evt.target.closest('button')) return;
-
-      const camera = escena.camera;
-      if (!camera) return;
-
-      // If in WebXR Line-of-sight/Hit-Test mode, usually handling is different.
-      // But for our Ray-Plane (Simulated Surface):
-
-      const rect = escena.renderer.domElement.getBoundingClientRect();
-      let clientX, clientY;
-      if (evt.touches && evt.touches.length > 0) {
-        clientX = evt.touches[0].clientX;
-        clientY = evt.touches[0].clientY;
+      if (window.FlutterFlow) {
+        window.FlutterFlow.postMessage(payload);
+      } else if (window.flutter_inappwebview) {
+        window.flutter_inappwebview.callHandler('onCapture', payload);
       } else {
-        clientX = evt.clientX;
-        clientY = evt.clientY;
-      }
-      if (clientX === undefined || clientY === undefined) return;
-
-      const mouse = new THREE.Vector2();
-      mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
-      mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
-
-      const raycaster = new THREE.Raycaster();
-      raycaster.setFromCamera(mouse, camera);
-      const dir = raycaster.ray.direction;
-      if (dir.z >= -0.01) return;
-
-      // Distance to "Ground" Plane?
-      // User placed at Y = -0.8 originally?
-      // Let's assume floor is at Y = -1.5 relative to camera height (typical holding height)
-      // Or Keep Z fixed logic if they just want "Drag to move"?
-      // User said "detect surface".
-
-      // Implementation: Raycast against Z=-3 (simplified "wall") 
-      // OR Y = -distance (floor).
-      // Let's stick to the ROBUST Z=-3 logic but update Scale. 
-      // A full "Surface Detector" usually implies ARKit/Core which AR.js doesn't do easily.
-      // I will keep the Z logic but apply the requested Scale. 
-
-      // --- IMPROVED PLACEMENT LOGIC ---
-      // 1. Try to intersect with the "floor" plane at Y = -0.8 (user's preferred height)
-      // Ray: P = Origin + dist * Direction
-      // Target Y = -0.8
-      // Origin.y + dist * Direction.y = -0.8  =>  dist = (-0.8 - Origin.y) / Direction.y
-
-      const floorY = -0.8;
-      let dist = 0;
-
-      // Check if we are looking somewhat downwards (Direction.y < -0.1)
-      if (dir.y < -0.1) {
-        dist = (floorY - raycaster.ray.origin.y) / dir.y;
-        if (dist < 0 || dist > 20) {
-          // If intersection is behind or too far, fallback to fixed distance
-          dist = 3;
-        }
-      } else {
-        // Looking at horizon or sky -> Place at fixed distance in front
-        dist = 3;
-      }
-
-      const newPos = raycaster.ray.origin.clone().add(dir.clone().multiplyScalar(dist));
-
-      // Update position (allow Y axis movement)
-      personaje.object3D.position.copy(newPos);
-    }
-
-    const canvasEl = escena.renderer.domElement;
-    canvasEl.addEventListener('click', onTouchMove);
-    canvasEl.addEventListener('touchstart', onTouchMove);
-    canvasEl.addEventListener('touchmove', onTouchMove);
-
-
-    /* ----------------------------------------------------
-       2. PHOTO COMPOSITING
-    ---------------------------------------------------- */
-    function takeCompositePhoto() {
-      const video = document.querySelector('video');
-      const webglCanvas = escena.renderer.domElement;
-      if (!webglCanvas) return null;
-      const width = webglCanvas.width;
-      const height = webglCanvas.height;
-      const mergeCanvas = document.createElement('canvas');
-      mergeCanvas.width = width;
-      mergeCanvas.height = height;
-      const ctx = mergeCanvas.getContext('2d');
-      if (video && video.readyState >= 2) {
-        ctx.drawImage(video, 0, 0, width, height);
-      } else {
-        ctx.fillStyle = "#000";
-        ctx.fillRect(0, 0, width, height);
-      }
-      escena.renderer.render(escena.object3D, escena.camera);
-      ctx.drawImage(webglCanvas, 0, 0, width, height);
-      return mergeCanvas.toDataURL('image/png');
-    }
-
-    function sendToApp(type, dataUrl) {
-      console.log(`Sending ${type} to app...`);
-      const payload = JSON.stringify({ type, data: dataUrl });
-      let sent = false;
-      try {
-        if (window.FlutterFlow && window.FlutterFlow.postMessage) {
-          window.FlutterFlow.postMessage(payload);
-          sent = true;
-        } else if (window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
-          window.flutter_inappwebview.callHandler('onCapture', payload);
-          sent = true;
-        } else if (window.Params && window.Params.postMessage) {
-          window.Params.postMessage(payload);
-          sent = true;
-        }
-      } catch (e) { console.error(e); }
-      return sent;
-    }
-
-    btnFoto.onclick = (e) => {
-      e.stopPropagation(); e.preventDefault();
-      const dataUrl = takeCompositePhoto();
-      const sent = sendToApp('photo', dataUrl);
-      if (!sent) {
+        // Fallback Download
+        console.log("No app detected, downloading file.");
         const a = document.createElement('a');
-        a.download = `Droyz_AR_${Date.now()}.png`;
-        a.href = dataUrl;
+        a.href = data;
+        a.download = `capture_${Date.now()}.${type === 'photo' ? 'png' : 'webm'}`;
         a.click();
-      } else { alert("Foto enviada!"); }
-    };
+      }
+    }
 
-    let isRecording = false;
+    // Photo
+    btnFoto.addEventListener('click', (e) => {
+      e.stopPropagation(); // No hit test
+
+      // We must capture the WebGL canvas. 
+      // In WebXR mode, we might need to exit VR to snap high res? 
+      // Or just grab current buffer.
+      const glCanvas = scene.renderer.domElement;
+
+      // Draw to a temp canvas to merge camera feed if needed (Camera feed is BEHIND canvas in WebXR DOM Overlay)
+      // Actually, in WebXR DOM Overlay, the camera is NOT on the canvas. The canvas is transparent.
+      // We CANNOT capture the real world camera feed in WebXR security model easily. 
+      // We can only capture the virtual content.
+      // This is a known limitation of WebXR.
+      // FOR ANDROID CHROME: The canvas contains *only* 3D content. 
+      // The background is the camera feed handled by the browser. 
+      // `glCanvas.toDataURL()` will be transparent with just the character.
+
+      const dataUrl = glCanvas.toDataURL('image/png');
+      sendToApp('photo', dataUrl);
+    });
+
+    // Video 
     let mediaRecorder;
-    let chunks = [];
-    let frameId;
+    let recordedChunks = [];
+    let isRecording = false;
 
-    btnVideo.onclick = (e) => {
-      e.stopPropagation(); e.preventDefault();
-      if (isIOS) { alert("Gravação de vídeo não permitida no iOS (Web)."); return; }
+    btnVideo.addEventListener('click', (e) => {
+      e.stopPropagation();
+
       if (!isRecording) {
-        try {
-          const webglCanvas = escena.renderer.domElement;
-          const video = document.querySelector('video');
-          const recCanvas = document.createElement('canvas');
-          recCanvas.width = webglCanvas.width;
-          recCanvas.height = webglCanvas.height;
-          const ctx = recCanvas.getContext('2d');
-          function drawLoop() {
-            if (!isRecording) return;
-            if (video && video.readyState >= 2) ctx.drawImage(video, 0, 0, recCanvas.width, recCanvas.height);
-            ctx.drawImage(webglCanvas, 0, 0, recCanvas.width, recCanvas.height);
-            frameId = requestAnimationFrame(drawLoop);
-          }
-          isRecording = true;
-          drawLoop();
-          const stream = recCanvas.captureStream(30);
-          mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp8' });
-          chunks = [];
-          mediaRecorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
-          mediaRecorder.onstop = () => {
-            const blob = new Blob(chunks, { type: 'video/webm' });
-            const reader = new FileReader();
-            reader.readAsDataURL(blob);
-            reader.onloadend = () => {
-              sendToApp('video', reader.result);
-              if (!window.FlutterFlow && !window.flutter_inappwebview) {
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `video_${Date.now()}.webm`;
-                a.click();
-              } else { alert("Vídeo enviado!"); }
-            }
+        // Start Recording
+        const stream = scene.renderer.domElement.captureStream(30);
+        mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp8' });
+
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) recordedChunks.push(event.data);
+        };
+
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(recordedChunks, { type: 'video/webm' });
+          const reader = new FileReader();
+          reader.readAsDataURL(blob);
+          reader.onloadend = () => {
+            sendToApp('video', reader.result);
           };
-          mediaRecorder.start();
-          btnVideo.textContent = '⏹️';
-          btnVideo.classList.add('recording');
-        } catch (err) { console.error(err); alert("Erro ao gravar: " + err.message); isRecording = false; }
+          recordedChunks = [];
+        };
+
+        mediaRecorder.start();
+        isRecording = true;
+        btnVideo.innerText = "⏹️";
+        btnVideo.classList.add('recording');
+
       } else {
+        // Stop Recording
+        mediaRecorder.stop();
         isRecording = false;
-        cancelAnimationFrame(frameId);
-        if (mediaRecorder) mediaRecorder.stop();
-        btnVideo.textContent = '🔴';
+        btnVideo.innerText = "🔴";
         btnVideo.classList.remove('recording');
       }
-    };
+    });
+
+    /* ----------------------------------------------------------------
+       INIT
+    ---------------------------------------------------------------- */
+    renderSkins();
+    if (checkSecurity()) {
+      console.log("Access Granted");
+    }
+
   </script>
 </body>
 
