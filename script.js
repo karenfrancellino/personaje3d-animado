@@ -220,7 +220,6 @@ window.addEventListener('DOMContentLoaded', init);
 
 viewer.addEventListener('error', (e) => {
   console.error("Model Viewer Error:", e);
-  // Create an on-screen simplified alert for mobile debugging
   const errDiv = document.createElement('div');
   errDiv.style.position = 'fixed';
   errDiv.style.top = '10px';
@@ -234,4 +233,26 @@ viewer.addEventListener('error', (e) => {
   errDiv.style.fontSize = '12px';
   errDiv.innerText = "Error loading model: " + (e.detail?.message || "Unknown error");
   document.body.appendChild(errDiv);
+});
+
+viewer.addEventListener('load', () => {
+  const model = viewer.model;
+  console.log("Model loaded!", model);
+
+  // 1. Debug Animations
+  if (viewer.availableAnimations.length > 0) {
+    console.log("Animations found:", viewer.availableAnimations);
+    viewer.animationName = viewer.availableAnimations[0];
+    viewer.play();
+  } else {
+    console.warn("No animations found in this model!");
+    alert("Warning: No animations found in this model file.");
+  }
+
+  // 2. Debug Dimensions (Scale)
+  // Get raw dimensions to help us adjust the scale factor
+  // We can't easily get 'meters' without bounding box calculation, 
+  // but we can guess based on viewing it.
+
+
 });
