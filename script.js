@@ -239,20 +239,48 @@ viewer.addEventListener('load', () => {
   const model = viewer.model;
   console.log("Model loaded!", model);
 
-  // 1. Debug Animations
+  // 1. Debug & Force Animations
+  let debugText = "Model Loaded. ";
+
   if (viewer.availableAnimations.length > 0) {
-    console.log("Animations found:", viewer.availableAnimations);
-    viewer.animationName = viewer.availableAnimations[0];
+    const animName = viewer.availableAnimations[0];
+    debugText += `Anim: ${animName}`;
+
+    // Explicitly set the property AND attribute to ensure baking works
+    viewer.animationName = animName;
+    viewer.setAttribute('animation-name', animName);
     viewer.play();
+
+    // Check if playing
+    setTimeout(() => {
+      debugText += ` | Paused: ${viewer.paused}`;
+      updateDebug(debugText);
+    }, 500);
+
   } else {
-    console.warn("No animations found in this model!");
-    alert("Warning: No animations found in this model file.");
+    debugText += "NO ANIMATIONS FOUND.";
+    console.warn("No animations found!");
   }
 
-  // 2. Debug Dimensions (Scale)
-  // Get raw dimensions to help us adjust the scale factor
-  // We can't easily get 'meters' without bounding box calculation, 
-  // but we can guess based on viewing it.
-
-
+  updateDebug(debugText);
 });
+
+function updateDebug(text) {
+  const existing = document.getElementById('debug-box');
+  if (existing) {
+    existing.innerText = text;
+    return;
+  }
+  const d = document.createElement('div');
+  d.id = 'debug-box';
+  d.style.position = 'fixed';
+  d.style.bottom = '100px';
+  d.style.left = '10px';
+  d.style.background = 'rgba(0,0,0,0.7)';
+  d.style.color = '#00FF00';
+  d.style.padding = '5px';
+  d.style.fontSize = '10px';
+  d.style.zIndex = '99999';
+  d.innerText = text;
+  document.body.appendChild(d);
+}
