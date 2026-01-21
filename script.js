@@ -1,23 +1,23 @@
 // Configuration
 const SKINS = [
-  { 
-    id: 'sickjacken', 
-    name: 'Sick Jacken', 
-    url: 'https://raw.githubusercontent.com/karenfrancellino/ar-models/main/DROYZ_ANIMAPP_SiCkJacken_v005.glb' 
+  {
+    id: 'sickjacken',
+    name: 'Sick Jacken',
+    url: 'https://raw.githubusercontent.com/karenfrancellino/ar-models/main/DROYZ_ANIMAPP_SiCkJacken_v005.glb'
   },
-  { 
-    id: 'psycho', 
-    name: 'Psycho Realm', 
+  {
+    id: 'psycho',
+    name: 'Psycho Realm',
     url: 'https://raw.githubusercontent.com/karenfrancellino/ar-models/main/DROYZ_ANIMAPP_SiCkJacken_v005.glb' // Placeholder: Reuse model for demo
   },
-  { 
-    id: 'droyz_v1', 
-    name: 'Droyz Standard', 
+  {
+    id: 'droyz_v1',
+    name: 'Droyz Standard',
     url: 'https://raw.githubusercontent.com/karenfrancellino/ar-models/main/DROYZ_ANIMAPP_SiCkJacken_v005.glb' // Placeholder
   },
-  { 
-    id: 'gold', 
-    name: 'Golden Edition', 
+  {
+    id: 'gold',
+    name: 'Golden Edition',
     url: 'https://raw.githubusercontent.com/karenfrancellino/ar-models/main/DROYZ_ANIMAPP_SiCkJacken_v005.glb' // Placeholder
   }
 ];
@@ -51,7 +51,7 @@ function init() {
   // }
 
   renderSkins();
-  
+
   if (skinParam) {
     selectSkin(skinParam);
   } else {
@@ -73,7 +73,7 @@ function renderSkins() {
       <div>${skin.name}</div>
     `;
     btn.dataset.id = skin.id;
-    
+
     btn.onclick = () => selectSkin(skin.id);
     carousel.appendChild(btn);
   });
@@ -81,11 +81,11 @@ function renderSkins() {
 
 function selectSkin(id) {
   const skin = SKINS.find(s => s.id === id) || SKINS[0];
-  
+
   // Update Model
   // Note: model-viewer handles transition automatically
   viewer.src = skin.url;
-  
+
   // Update UI
   document.querySelectorAll('.skin-item').forEach(el => {
     el.classList.remove('selected');
@@ -106,8 +106,8 @@ function sendToApp(type, dataUrl) {
   if (window.FlutterFlow && window.FlutterFlow.postMessage) {
     window.FlutterFlow.postMessage(payload);
     return true;
-  } 
-  
+  }
+
   // 2. Standard WebView Interface
   if (window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
     window.flutter_inappwebview.callHandler('onCapture', payload);
@@ -182,12 +182,12 @@ function startRecording() {
 
     const stream = canvas.captureStream(30); // 30 FPS
     mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp9' }); // VP9 or VP8
-    
+
     recordedChunks = [];
     mediaRecorder.ondataavailable = (e) => {
       if (e.data.size > 0) recordedChunks.push(e.data);
     };
-    
+
     mediaRecorder.onstop = () => {
       const blob = new Blob(recordedChunks, { type: 'video/webm' });
       const reader = new FileReader();
@@ -200,7 +200,7 @@ function startRecording() {
     mediaRecorder.start();
     isRecording = true;
     btnRecord.classList.add('recording');
-    
+
   } catch (e) {
     console.warn("Video recording failed/unsupported:", e);
     alert("Video recording not supported in this browser view. Please use system screen recording.");
@@ -217,3 +217,21 @@ function stopRecording() {
 
 // Start
 window.addEventListener('DOMContentLoaded', init);
+
+viewer.addEventListener('error', (e) => {
+  console.error("Model Viewer Error:", e);
+  // Create an on-screen simplified alert for mobile debugging
+  const errDiv = document.createElement('div');
+  errDiv.style.position = 'fixed';
+  errDiv.style.top = '10px';
+  errDiv.style.left = '10px';
+  errDiv.style.right = '10px';
+  errDiv.style.background = 'rgba(255,0,0,0.8)';
+  errDiv.style.color = 'white';
+  errDiv.style.padding = '10px';
+  errDiv.style.borderRadius = '5px';
+  errDiv.style.zIndex = '99999';
+  errDiv.style.fontSize = '12px';
+  errDiv.innerText = "Error loading model: " + (e.detail?.message || "Unknown error");
+  document.body.appendChild(errDiv);
+});
