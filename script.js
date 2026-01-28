@@ -239,48 +239,15 @@ viewer.addEventListener('load', () => {
   const model = viewer.model;
   console.log("Model loaded!", model);
 
-  // 1. Debug & Force Animations
-  let debugText = "Model Loaded. ";
-
   if (viewer.availableAnimations.length > 0) {
     const animName = viewer.availableAnimations[0];
-    debugText += `Anim: ${animName}`;
 
     // Explicitly set the property AND attribute to ensure baking works
     viewer.animationName = animName;
     viewer.setAttribute('animation-name', animName);
     viewer.play();
 
-    // Check if playing
-    setTimeout(() => {
-      debugText += ` | Paused: ${viewer.paused}`;
-      updateDebug(debugText);
-    }, 500);
-
   } else {
-    debugText += "NO ANIMATIONS FOUND.";
     console.warn("No animations found!");
   }
-
-  updateDebug(debugText);
 });
-
-function updateDebug(text) {
-  const existing = document.getElementById('debug-box');
-  if (existing) {
-    existing.innerText = text;
-    return;
-  }
-  const d = document.createElement('div');
-  d.id = 'debug-box';
-  d.style.position = 'fixed';
-  d.style.bottom = '100px';
-  d.style.left = '10px';
-  d.style.background = 'rgba(0,0,0,0.7)';
-  d.style.color = '#00FF00';
-  d.style.padding = '5px';
-  d.style.fontSize = '10px';
-  d.style.zIndex = '99999';
-  d.innerText = text;
-  document.body.appendChild(d);
-}
